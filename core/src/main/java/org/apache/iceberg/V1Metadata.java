@@ -19,6 +19,7 @@
 
 package org.apache.iceberg;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -395,6 +396,11 @@ class V1Metadata {
     @Override
     public List<Long> splitOffsets() {
       return wrapped.splitOffsets();
+    }
+
+    @Override
+    public byte[] serialize() throws IOException {
+      return wrapped.serialize();
     }
 
     @Override

@@ -20,6 +20,7 @@
 package org.apache.iceberg.spark;
 
 import com.google.common.collect.Maps;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Locale;
@@ -158,6 +159,11 @@ public class SparkDataFile implements DataFile {
   @Override
   public List<Long> splitOffsets() {
     return wrapped.isNullAt(splitOffsetsPosition) ? null : wrapped.getList(splitOffsetsPosition);
+  }
+
+  @Override
+  public byte[] serialize() throws IOException {
+    throw new UnsupportedOperationException("Not implemented: serialize");
   }
 
   private int fieldPosition(String name, StructType sparkType) {
