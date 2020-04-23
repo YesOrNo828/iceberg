@@ -157,7 +157,7 @@ public class SparkParquetWriters {
                     "Unsupported base type for decimal: " + primitive.getPrimitiveTypeName());
             }
           case BSON:
-            return byteArrays(desc);
+            return ParquetValueWriters.byteArrays(desc);
           default:
             throw new UnsupportedOperationException(
                 "Unsupported logical type: " + primitive.getOriginalType());
@@ -167,7 +167,7 @@ public class SparkParquetWriters {
       switch (primitive.getPrimitiveTypeName()) {
         case FIXED_LEN_BYTE_ARRAY:
         case BINARY:
-          return byteArrays(desc);
+          return ParquetValueWriters.byteArrays(desc);
         case BOOLEAN:
           return ParquetValueWriters.booleans(desc);
         case INT32:
@@ -210,10 +210,6 @@ public class SparkParquetWriters {
   private static PrimitiveWriter<Decimal> decimalAsFixed(ColumnDescriptor desc,
                                                          int precision, int scale) {
     return new FixedDecimalWriter(desc, precision, scale);
-  }
-
-  private static PrimitiveWriter<byte[]> byteArrays(ColumnDescriptor desc) {
-    return new ByteArrayWriter(desc);
   }
 
   private static class UTF8StringWriter extends PrimitiveWriter<UTF8String> {
@@ -306,17 +302,6 @@ public class SparkParquetWriters {
       }
 
       column.writeBinary(repetitionLevel, Binary.fromReusedByteArray(buf));
-    }
-  }
-
-  private static class ByteArrayWriter extends PrimitiveWriter<byte[]> {
-    private ByteArrayWriter(ColumnDescriptor desc) {
-      super(desc);
-    }
-
-    @Override
-    public void write(int repetitionLevel, byte[] bytes) {
-      column.writeBinary(repetitionLevel, Binary.fromReusedByteArray(bytes));
     }
   }
 

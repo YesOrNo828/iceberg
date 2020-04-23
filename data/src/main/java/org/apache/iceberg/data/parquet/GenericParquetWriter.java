@@ -54,11 +54,15 @@ public class GenericParquetWriter {
     return (ParquetValueWriter<T>) ParquetTypeVisitor.visit(type, new WriteBuilder(type));
   }
 
-  private static class WriteBuilder extends ParquetTypeVisitor<ParquetValueWriter<?>> {
+  public static class WriteBuilder extends ParquetTypeVisitor<ParquetValueWriter<?>> {
     private final MessageType type;
 
-    WriteBuilder(MessageType type) {
+    public WriteBuilder(MessageType type) {
       this.type = type;
+    }
+
+    protected MessageType getMessageType() {
+      return this.type;
     }
 
     @Override
