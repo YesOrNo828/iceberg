@@ -1,0 +1,462 @@
+  <configuration>
+    
+    <property>
+      <name>ambari.hive.db.schema.name</name>
+      <value>hive</value>
+    </property>
+    
+    <property>
+      <name>datanucleus.autoCreateSchema</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>datanucleus.fixedDatastore</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hbase.ipc.client.fallback-to-simple-auth-allowed</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.auto.convert.join</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.auto.convert.join.noconditionaltask</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.auto.convert.sortmerge.join</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.cluster.delegation.token.max-lifetime</name>
+      <value>21600000</value>
+    </property>
+    
+    <property>
+      <name>hive.cluster.delegation.token.store.class</name>
+      <value>org.apache.hadoop.hive.thrift.ZooKeeperTokenStore</value>
+    </property>
+    
+    <property>
+      <name>hive.cluster.delegation.token.store.zookeeper.connectString</name>
+      <value>hzadg-bdms-1.server.163.org:2181,hzadg-bdms-2.server.163.org:2181,hzadg-bdms-3.server.163.org:2181</value>
+    </property>
+    
+    <property>
+      <name>hive.default.fileformat</name>
+      <value>TextFile</value>
+    </property>
+    
+    <property>
+      <name>hive.enforce.bucketing</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.enforce.sorting</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.exec.drop.ignorenonexistent</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.exec.groupby.cube.constant.propagation.fix</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.exec.post.hooks</name>
+      <value>org.apache.atlas.hive.hook.HiveHook,com.netease.music.da.metahub.lineage.hive.LineageHiveHook</value>
+    </property>
+    
+    <property>
+      <name>hive.exec.scratchdir</name>
+      <value>/tmp/hive/public</value>
+    </property>
+    
+    <property>
+      <name>hive.exec.stagingdir.for.destination.not.exists</name>
+      <value>/hive-staging/.hive-staging</value>
+    </property>
+    
+    <property>
+      <name>hive.exec.use.fs.trash</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.execution.engine</name>
+      <value>mr</value>
+    </property>
+    
+    <property>
+      <name>hive.limit.query.max.table.partition</name>
+      <value>5000</value>
+    </property>
+    
+    <property>
+      <name>hive.map.aggr</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.mapjoin.bucket.cache.size</name>
+      <value>10000</value>
+    </property>
+    
+    <property>
+      <name>hive.mapred.reduce.tasks.speculative.execution</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.authorization.storage.check.externaltable.drop</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.cache.pinobjtypes</name>
+      <value>Table,Database,Type,FieldSchema,Order</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.client.connect.retry.delay</name>
+      <value>0s</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.client.socket.timeout</name>
+      <value>600</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.connect.retries</name>
+      <value>1</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.event.listeners</name>
+      <!-- <value>org.apache.ranger.binding.metastore.ChangeMetastoreWriteDbEventListener,org.apache.ranger.binding.metastore.SyncMetastoreEventListener,com.netease.music.da.metahub.lineage.hive.LineageMetaStoreListener</value> -->
+      <value/>
+    </property>
+    
+    <property>
+      <name>hive.metastore.execute.setugi</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.kerberos.keytab.file</name>
+      <value>/etc/security/keytabs/hive.service.keytab</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.kerberos.principal</name>
+      <value>hive/_HOST@BDMS.163.COM</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.pre.event.listeners</name>
+      <value>org.apache.hadoop.hive.ql.security.authorization.AuthorizationPreEventListener</value>
+      <!-- <value/> -->
+    </property>
+    
+    <property>
+      <name>hive.metastore.sasl.enabled</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.schema.verification</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.warehouse.dir</name>
+      <value>/user/warehouse</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.zookeeper.product.namespace</name>
+      <value>hive</value>
+    </property>
+    
+    <property>
+      <name>hive.metastore.zookeeper.quorum</name>
+      <value>${hive.zookeeper.quorum}</value>
+    </property>
+    
+    <property>
+      <name>hive.optimize.bucketmapjoin</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.optimize.bucketmapjoin.sortedmerge</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.optimize.reducededuplication</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.optimize.reducededuplication.min.reducer</name>
+      <value>1</value>
+    </property>
+    
+    <property>
+      <name>hive.querylog.location</name>
+      <value>/tmp</value>
+    </property>
+    
+    <property>
+      <name>hive.scratch.dir.permission</name>
+      <value>730</value>
+    </property>
+    
+    <property>
+      <name>hive.security.authorization.createtable.owner.grants</name>
+      <value>ALL</value>
+    </property>
+    
+    <property>
+      <name>hive.security.authorization.enabled</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.security.authorization.manager</name>
+      <value>org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdConfOnlyAuthorizerFactory</value>
+    </property>
+    
+    <property>
+      <name>hive.security.metastore.authenticator.manager</name>
+      <value>org.apache.hadoop.hive.ql.security.HadoopDefaultMetastoreAuthenticator</value>
+    </property>
+    
+    <property>
+      <name>hive.security.metastore.authorization.manager</name>
+      <value>org.apache.hadoop.hive.ql.security.authorization.StorageBasedAuthorizationProvider</value>
+      <!-- <value/> -->
+    </property>
+    
+    <property>
+      <name>hive.serdes.using.metastore.for.schema</name>
+      <value>org.apache.hadoop.hive.ql.io.orc.OrcSerde,org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe,org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe,org.apache.hadoop.hive.serde2.dynamic_type.DynamicSerDe,org.apache.hadoop.hive.serde2.MetadataTypedColumnsetSerDe,org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe,org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe,org.apache.hadoop.hive.serde2.lazybinary.LazyBinarySerDe,org.openx.data.jsonserde.JsonSerDe</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.async.exec.threads</name>
+      <value>100</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.async.exec.wait.queue.size</name>
+      <value>500</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.authentication</name>
+      <value>KERBEROS</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.authentication.kerberos.keytab</name>
+      <value>/etc/security/keytabs/hive.service.keytab</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.authentication.kerberos.principal</name>
+      <value>hive/_HOST@BDMS.163.COM</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.authentication.spnego.keytab</name>
+      <value>/etc/security/keytabs/spnego.service.keytab</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.authentication.spnego.principal</name>
+      <value>HTTP/_HOST@BDMS.163.COM</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.enable.doAs</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.max.start.attempts</name>
+      <value>5</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.support.dynamic.service.discovery</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.thrift.max.worker.threads</name>
+      <value>600</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.thrift.min.worker.threads</name>
+      <value>20</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.thrift.port</name>
+      <value>10500</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.thrift.sasl.qop</name>
+      <value>auth</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.transport.mode</name>
+      <value>binary</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.use.SSL</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.server2.zookeeper.namespace</name>
+      <value>hiveserver2</value>
+    </property>
+    
+    <property>
+      <name>hive.session.history.query.enabled</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.spark.client.connect.timeout</name>
+      <value>180000ms</value>
+    </property>
+    
+    <property>
+      <name>hive.spark.client.future.timeout</name>
+      <value>180s</value>
+    </property>
+    
+    <property>
+      <name>hive.spark.client.server.connect.timeout</name>
+      <value>900000ms</value>
+    </property>
+    
+    <property>
+      <name>hive.spark.job.monitor.timeout</name>
+      <value>600s</value>
+    </property>
+    
+    <property>
+      <name>hive.support.sql11.reserved.keywords</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.tez.container.size</name>
+      <value>4096</value>
+    </property>
+    
+    <property>
+      <name>hive.tez.java.opts</name>
+      <value>-server -Xmx3277m -Djava.net.preferIPv4Stack=true -XX:NewRatio=8 -XX:+UseNUMA -XX:+UseParallelGC -XX:+PrintGCDetails -verbose:gc -XX:+PrintGCTimeStamps</value>
+    </property>
+    
+    <property>
+      <name>hive.vectorized.execution.enabled</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>hive.warehouse.subdir.inherit.perms</name>
+      <value>false</value>
+    </property>
+    
+    <property>
+      <name>hive.zookeeper.quorum</name>
+      <value>hzadg-bdms-1.server.163.org:2181,hzadg-bdms-2.server.163.org:2181,hzadg-bdms-3.server.163.org:2181</value>
+    </property>
+    
+    <property>
+      <name>ipc.client.fallback-to-simple-auth-allowed</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>javax.jdo.option.ConnectionDriverName</name>
+      <value>com.mysql.jdbc.Driver</value>
+    </property>
+    
+    <property>
+      <name>javax.jdo.option.ConnectionPassword</name>
+      <value>hive</value>
+      <hidden>HIVE_CLIENT,CONFIG_DOWNLOAD</hidden>
+    </property>
+    
+    <property>
+      <name>javax.jdo.option.ConnectionURL</name>
+      <value>jdbc:mysql://hzadg-bdms-1.server.163.org/hive?characterEncoding=utf-8</value>
+    </property>
+    
+    <property>
+      <name>javax.jdo.option.ConnectionUserName</name>
+      <value>hive</value>
+    </property>
+    
+    <property>
+      <name>spark.driver.memeory</name>
+      <value>2g</value>
+    </property>
+    
+    <property>
+      <name>spark.eventLog.dir</name>
+      <value>hdfs:///spark2-history/</value>
+    </property>
+    
+    <property>
+      <name>spark.eventLog.enabled</name>
+      <value>true</value>
+    </property>
+    
+    <property>
+      <name>spark.executor.memeory</name>
+      <value>4g</value>
+    </property>
+    
+    <property>
+      <name>spark.home</name>
+      <value>/usr/ndp/current/hive_on_spark</value>
+    </property>
+    
+    <property>
+      <name>spark.master</name>
+      <value>yarn-cluster</value>
+    </property>
+    
+    <property>
+      <name>spark.serializer</name>
+      <value>org.apache.spark.serializer.KryoSerializer</value>
+    </property>
+    
+  </configuration>
