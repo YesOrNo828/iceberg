@@ -25,11 +25,15 @@ import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.hadoop.Util;
 import org.apache.parquet.io.OutputFile;
 import org.apache.parquet.io.PositionOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
 public class HadoopOutputFile implements OutputFile {
+  private static final Logger LOG = LoggerFactory.getLogger(HadoopOutputFile.class);
   // need to supply a buffer size when setting block size. this is the default
   // for hadoop 1 to present. copying it avoids loading DFSConfigKeys.
   private static final int DFS_BUFFER_SIZE_DEFAULT = 4096;
@@ -57,6 +61,7 @@ public class HadoopOutputFile implements OutputFile {
   public static HadoopOutputFile fromPath(Path path, Configuration conf)
       throws IOException {
     FileSystem fs = Util.getFs(path, conf);
+    LOG.info("fs: {}.", fs.toString());
     return new HadoopOutputFile(fs, fs.makeQualified(path), conf);
   }
 
@@ -79,6 +84,7 @@ public class HadoopOutputFile implements OutputFile {
 
   @Override
   public PositionOutputStream createOrOverwrite(long blockSizeHint) throws IOException {
+    LOG.info("fs: {}.", fs.toString());
     return HadoopStreams.wrap(fs.create(path, true /* overwrite if exists */,
         DFS_BUFFER_SIZE_DEFAULT, fs.getDefaultReplication(path),
         Math.max(fs.getDefaultBlockSize(path), blockSizeHint)));

@@ -53,9 +53,7 @@ public class Util {
     // get krb.enabled from configuration
     boolean krbEnabled = conf.getBoolean(KerberosLoginUtil.KERBEROS_ENABLED, false);
     boolean isLogin;
-    UserGroupInformation ugi = null;
     try {
-      System.setProperty("HADOOP_USER_NAME", "sloth/dev@BDMS.163.COM");
       isLogin = UserGroupInformation.isLoginKeytabBased();
       boolean securityEnabled = UserGroupInformation.isSecurityEnabled();
       LOG.info("krbEnabled: {}, ugi isLogin: {}, security: {}, hasKrbCredentials: {}.",
@@ -64,22 +62,6 @@ public class Util {
         if (!isLogin) {
           KerberosLoginUtil.initKerberosEnv(conf);
         }
-        Token token = UserGroupInformation.getLoginUser().doAs((PrivilegedAction<Token>) () -> {
-          Token tk = null;
-          try {
-            FileSystem fs = FileSystem.get(conf);
-            tk = fs.getDelegationToken(UserGroupInformation.getLoginUser().getShortUserName());
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-          return tk;
-        });
-        LOG.info("token:{}.", token);
-        Credentials cre = new Credentials();
-        ugi = UserGroupInformation.getLoginUser();
-        cre.addToken(new Text(ugi.getShortUserName()), token);
-        ugi.addCredentials(cre);
-
 
         FileSystem fs = UserGroupInformation.getLoginUser().doAs((PrivilegedAction<FileSystem>) () -> {
           try {
@@ -102,25 +84,6 @@ public class Util {
     }
 
     try {
-      FileSystem fs = path.getFileSystem(conf);
-      UserGroupInformation cUser = UserGroupInformation.getCurrentUser();
-      String current = cUser.getUserName();
-      LOG.info("login user: {}, short name: {}, current user: {}.",
-          ugi.getUserName(), ugi.getShortUserName(),
-          current);
-      AccessControlContext context = AccessController.getContext();
-      Subject subject = Subject.getSubject(context);
-      LOG.info("current user is keytab: {}, hasKerberosCredentials: {}.",
-          cUser.isFromKeytab(), cUser.hasKerberosCredentials());
-      LOG.info("subject == null ? {}.", subject ==  null);
-      if (subject != null) {
-        LOG.info("subject principal size: {}.", subject.getPrincipals().size());
-        subject.getPrincipals().forEach(principal -> LOG.info("principal: {}, toString: {}, class: {}.",
-            principal.getName(), principal.toString(), principal.getClass().toString()));
-      }
-
-      Token token = fs.getDelegationToken(ugi.getShortUserName());
-      LOG.info("token: {}.", token);
       return path.getFileSystem(conf);
     } catch (IOException e) {
       throw new RuntimeIOException(e, "Failed to get file system for path: %s", path);

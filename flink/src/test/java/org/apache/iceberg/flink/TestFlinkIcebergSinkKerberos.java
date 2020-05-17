@@ -23,6 +23,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.IOException;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import java.util.Set;
 
@@ -36,6 +38,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -45,13 +48,16 @@ import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.hadoop.KerberosLoginUtil;
-import org.apache.iceberg.hadoop.Util;
 import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import javax.security.auth.Subject;
+
+import static junit.framework.TestCase.assertNotNull;
 
 public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
 
@@ -77,6 +83,16 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
         .build();
     Tables table = new HadoopTables();
     return table.create(SCHEMA, spec, tableLocation);
+  }
+
+  @Test
+  public void testNonHadoopACC() throws PrivilegedActionException {
+    Subject nonHadoopSubject = new Subject();
+    Subject.doAs(nonHadoopSubject, (PrivilegedExceptionAction<Void>) () -> {
+      UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
+      assertNotNull(ugi);
+      return null;
+    });
   }
 
   @Test
@@ -154,10 +170,10 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
   private void initKrbConf(Configuration conf) {
     conf.setBoolean(KerberosLoginUtil.KERBEROS_ENABLED, true);
     conf.set(KerberosLoginUtil.KERBEROS_LOGIN_KRB_CONF_NAME, "krb5.conf");
-//    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_KEYTAB_NAME, "sloth.keytab");
-    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_KEYTAB_NAME, "yexianxun.keytab");
-//    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_PRINCIPAL, "sloth/dev@BDMS.163.COM");
-    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_PRINCIPAL, "bdms_yexianxun/dev@BDMS.163.COM");
+    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_KEYTAB_NAME, "sloth.keytab");
+//    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_KEYTAB_NAME, "yexianxun.keytab");
+    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_PRINCIPAL, "sloth/dev@BDMS.163.COM");
+//    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_PRINCIPAL, "bdms_yexianxun/dev@BDMS.163.COM");
   }
 
   @Test
@@ -171,8 +187,8 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
 //    String tableLocationPre = "hdfs://slothTest/user/sloth/iceberg/sink-test/";
     String hdfsLocation = "/Users/yexianxun/dev/env/mammut-test-hive/hdfs-site.xml";
     String coreLocation = "/Users/yexianxun/dev/env/mammut-test-hive/core-site.xml";
-//    String tableLocationPre = "hdfs://bdms-test/user/sloth/iceberg/";
-    String tableLocationPre = "hdfs://bdms-test/user/sloth/yxx_iceberg/";
+    String tableLocationPre = "hdfs://bdms-test/user/sloth/iceberg/";
+//    String tableLocationPre = "hdfs://bdms-test/user/sloth/yxx_iceberg/";
 
     RowTypeInfo flinkSchema = new RowTypeInfo(
         org.apache.flink.api.common.typeinfo.Types.STRING,
