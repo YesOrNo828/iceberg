@@ -33,6 +33,7 @@ class IcebergValidator extends ConnectorDescriptorValidator {
   public static final int CONNECTOR_PROPERTY_VERSION_VALUE = 1;
 
   public static final String CONNECTOR_ICEBERG_TABLE_IDENTIFIER = "connector.iceberg-table.identifier";
+  public static final String CONNECTOR_ICEBERG_CONFIGURATION_PATH = "connector.iceberg-configuration.path";
 
   private static final IcebergValidator INSTANCE = new IcebergValidator();
 

@@ -21,8 +21,6 @@ package org.apache.iceberg.flink.table;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.util.List;
-import java.util.Map;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
@@ -34,6 +32,15 @@ import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
+import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.MalformedURLException;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Factory for creating configured instances of {@link IcebergTableSink} or source.
@@ -41,6 +48,7 @@ import org.apache.flink.types.Row;
 public class IcebergTableFactory implements
     StreamTableSourceFactory<Row>,
     StreamTableSinkFactory<Tuple2<Boolean, Row>> {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergTableFactory.class);
 
   @Override
   public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(Map<String, String> properties) {
@@ -54,7 +62,23 @@ public class IcebergTableFactory implements
         .isValue(StreamTableDescriptorValidator.UPDATE_MODE, StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND);
     String tableIdentifier = descProperties.getString(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
     TableSchema schema = descProperties.getTableSchema(Schema.SCHEMA);
-    return new IcebergTableSink(isAppendOnly, tableIdentifier, schema);
+    Optional<String> confPathOptional = descProperties
+        .getOptionalString(IcebergValidator.CONNECTOR_ICEBERG_CONFIGURATION_PATH);
+    if (!confPathOptional.isPresent()) {
+      return new IcebergTableSink(isAppendOnly, tableIdentifier, schema);
+    } else {
+      String confPath = null;
+      try {
+        confPath = confPathOptional.get();
+        Configuration conf = new Configuration(false);
+        conf.addResource(Paths.get(confPath, "hdfs-site.xml").toUri().toURL());
+        conf.addResource(Paths.get(confPath, "core-site.xml").toUri().toURL());
+        return new IcebergTableSink(isAppendOnly, tableIdentifier, schema, conf);
+      } catch (MalformedURLException e) {
+        LOG.error("cannot find resource from path: {}.", confPath, e);
+        throw new RuntimeException(String.format("cannot find resource from path: %s.", confPath));
+      }
+    }
   }
 
   @Override
@@ -80,6 +104,7 @@ public class IcebergTableFactory implements
 
     // Iceberg properties
     properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
+    properties.add(IcebergValidator.CONNECTOR_ICEBERG_CONFIGURATION_PATH);
 
     // Flink schema properties
     properties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_DATA_TYPE);
