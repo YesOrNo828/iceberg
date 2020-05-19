@@ -57,13 +57,13 @@ public class TestIcebergTableFactory {
     tableLocation = folder.getAbsolutePath();
   }
 
-  private DescriptorProperties createDescriptor(TableSchema tableSchema, String tableLocation) {
+  private DescriptorProperties createDescriptor(TableSchema tableSchema, String location) {
     Map<String, String> tableProperties = new HashMap<>();
     tableProperties.put(IcebergValidator.CONNECTOR_TYPE, IcebergValidator.CONNECTOR_TYPE_VALUE);
     tableProperties.put(IcebergValidator.CONNECTOR_VERSION, IcebergValidator.CONNECTOR_VERSION_VALUE);
     tableProperties.put(IcebergValidator.CONNECTOR_PROPERTY_VERSION,
         String.valueOf(IcebergValidator.CONNECTOR_PROPERTY_VERSION_VALUE));
-    tableProperties.put(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER, tableLocation);
+    tableProperties.put(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER, location);
 
     DescriptorProperties descriptorProperties = new DescriptorProperties(true);
     descriptorProperties.putTableSchema(Schema.SCHEMA, tableSchema);
