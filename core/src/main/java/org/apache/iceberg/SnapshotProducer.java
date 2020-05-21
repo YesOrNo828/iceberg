@@ -34,6 +34,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import org.apache.iceberg.events.Listeners;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.exceptions.RuntimeIOException;
 import org.apache.iceberg.io.OutputFile;
@@ -150,7 +151,7 @@ abstract class SnapshotProducer<ThisT> implements SnapshotUpdate<ThisT> {
     if (base.formatVersion() > 1 || base.propertyAsBoolean(MANIFEST_LISTS_ENABLED, MANIFEST_LISTS_ENABLED_DEFAULT)) {
       OutputFile manifestList = manifestListPath();
 
-      try (ManifestListWriter writer = ManifestListWriter.write(
+      try (ManifestListWriter writer = ManifestLists.write(
           ops.current().formatVersion(), manifestList, snapshotId(), parentSnapshotId, sequenceNumber)) {
 
         // keep track of the manifest lists created
@@ -293,6 +294,19 @@ abstract class SnapshotProducer<ThisT> implements SnapshotUpdate<ThisT> {
     } catch (RuntimeException e) {
       LOG.warn("Failed to load committed table metadata, skipping manifest clean-up", e);
     }
+
+    notifyListeners();
+  }
+
+  private void notifyListeners() {
+    try {
+      Object event = updateEvent();
+      if (event != null) {
+        Listeners.notifyAll(event);
+      }
+    } catch (RuntimeException e) {
+      LOG.warn("Failed to notify listeners", e);
+    }
   }
 
   protected void cleanAll() {
@@ -318,7 +332,7 @@ abstract class SnapshotProducer<ThisT> implements SnapshotUpdate<ThisT> {
   }
 
   protected ManifestWriter newManifestWriter(PartitionSpec spec) {
-    return ManifestWriter.write(ops.current().formatVersion(), spec, newManifestOutput(), snapshotId());
+    return ManifestFiles.write(ops.current().formatVersion(), spec, newManifestOutput(), snapshotId());
   }
 
   protected long snapshotId() {
@@ -333,7 +347,7 @@ abstract class SnapshotProducer<ThisT> implements SnapshotUpdate<ThisT> {
   }
 
   private static ManifestFile addMetadata(TableOperations ops, ManifestFile manifest) {
-    try (ManifestReader reader = ManifestReader.read(manifest, ops.io(), ops.current().specsById())) {
+    try (ManifestReader reader = ManifestFiles.read(manifest, ops.io(), ops.current().specsById())) {
       PartitionSummary stats = new PartitionSummary(ops.current().spec(manifest.partitionSpecId()));
       int addedFiles = 0;
       long addedRows = 0L;
@@ -379,8 +393,8 @@ abstract class SnapshotProducer<ThisT> implements SnapshotUpdate<ThisT> {
       }
 
       return new GenericManifestFile(manifest.path(), manifest.length(), manifest.partitionSpecId(),
-          snapshotId, addedFiles, addedRows, existingFiles, existingRows, deletedFiles, deletedRows,
-          stats.summaries());
+          manifest.sequenceNumber(), manifest.minSequenceNumber(), snapshotId, addedFiles, addedRows, existingFiles,
+          existingRows, deletedFiles, deletedRows, stats.summaries());
 
     } catch (IOException e) {
       throw new RuntimeIOException(e, "Failed to read manifest: %s", manifest.path());

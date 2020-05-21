@@ -30,7 +30,6 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.iceberg.Schema;
@@ -123,6 +122,10 @@ public class GenericParquetReaders {
     public ReadBuilder(MessageType type, Map<Integer, ?> idToConstant) {
       this.type = type;
       this.idToConstant = idToConstant;
+    }
+
+    protected Map<Integer, ?> getIdToConstant() {
+      return idToConstant;
     }
 
     @Override
@@ -296,36 +299,6 @@ public class GenericParquetReaders {
 
     protected MessageType type() {
       return type;
-    }
-
-    protected Map<Integer, ?> idToConstant() {
-      return idToConstant;
-    }
-
-    private String[] currentPath() {
-      String[] path = new String[fieldNames.size()];
-      if (!fieldNames.isEmpty()) {
-        Iterator<String> iter = fieldNames.descendingIterator();
-        for (int i = 0; iter.hasNext(); i += 1) {
-          path[i] = iter.next();
-        }
-      }
-
-      return path;
-    }
-
-    protected String[] path(String name) {
-      String[] path = new String[fieldNames.size() + 1];
-      path[fieldNames.size()] = name;
-
-      if (!fieldNames.isEmpty()) {
-        Iterator<String> iter = fieldNames.descendingIterator();
-        for (int i = 0; iter.hasNext(); i += 1) {
-          path[i] = iter.next();
-        }
-      }
-
-      return path;
     }
   }
 

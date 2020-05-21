@@ -21,16 +21,32 @@ package org.apache.iceberg;
 
 import com.google.common.collect.Iterables;
 import java.io.IOException;
+import java.util.List;
 import org.apache.iceberg.ManifestEntry.Status;
+import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class TestManifestReader extends TableTestBase {
+  @Parameterized.Parameters
+  public static Object[][] parameters() {
+    return new Object[][] {
+        new Object[] { 1 },
+        new Object[] { 2 },
+    };
+  }
+
+  public TestManifestReader(int formatVersion) {
+    super(formatVersion);
+  }
 
   @Test
   public void testManifestReaderWithEmptyInheritableMetadata() throws IOException {
-    ManifestFile manifest = writeManifest("manifest.avro", manifestEntry(Status.EXISTING, 1000L, FILE_A));
-    try (ManifestReader reader = ManifestReader.read(FILE_IO.newInputFile(manifest.path()))) {
+    ManifestFile manifest = writeManifest(1000L, manifestEntry(Status.EXISTING, 1000L, FILE_A));
+    try (ManifestReader reader = ManifestFiles.read(manifest, FILE_IO)) {
       ManifestEntry entry = Iterables.getOnlyElement(reader.entries());
       Assert.assertEquals(Status.EXISTING, entry.status());
       Assert.assertEquals(FILE_A.path(), entry.file().path());
@@ -41,11 +57,50 @@ public class TestManifestReader extends TableTestBase {
   @Test
   public void testInvalidUsage() throws IOException {
     ManifestFile manifest = writeManifest(FILE_A, FILE_B);
-    try (ManifestReader reader = ManifestReader.read(FILE_IO.newInputFile(manifest.path()))) {
-      AssertHelpers.assertThrows(
-          "Should not be possible to read manifest without explicit snapshot ids and inheritable metadata",
-          IllegalArgumentException.class, "must have explicit snapshot ids",
-          () -> Iterables.getOnlyElement(reader.entries()));
+    AssertHelpers.assertThrows(
+        "Should not be possible to read manifest without explicit snapshot ids and inheritable metadata",
+        IllegalArgumentException.class, "Cannot read from ManifestFile with null (unassigned) snapshot ID",
+        () -> ManifestFiles.read(manifest, FILE_IO));
+  }
+
+  @Test
+  public void testManifestReaderWithPartitionMetadata() throws IOException {
+    ManifestFile manifest = writeManifest(1000L, manifestEntry(Status.EXISTING, 123L, FILE_A));
+    try (ManifestReader reader = ManifestFiles.read(manifest, FILE_IO)) {
+      ManifestEntry entry = Iterables.getOnlyElement(reader.entries());
+      Assert.assertEquals(123L, (long) entry.snapshotId());
+
+      List<Types.NestedField> fields = ((PartitionData) entry.file().partition()).getPartitionType().fields();
+      Assert.assertEquals(1, fields.size());
+      Assert.assertEquals(1000, fields.get(0).fieldId());
+      Assert.assertEquals("data_bucket", fields.get(0).name());
+      Assert.assertEquals(Types.IntegerType.get(), fields.get(0).type());
     }
   }
+
+  @Test
+  public void testManifestReaderWithUpdatedPartitionMetadataForV1Table() throws IOException {
+    PartitionSpec spec = PartitionSpec.builderFor(table.schema())
+        .bucket("id", 8)
+        .bucket("data", 16)
+        .build();
+    table.ops().commit(table.ops().current(), table.ops().current().updatePartitionSpec(spec));
+
+    ManifestFile manifest = writeManifest(1000L, manifestEntry(Status.EXISTING, 123L, FILE_A));
+    try (ManifestReader reader = ManifestFiles.read(manifest, FILE_IO)) {
+      ManifestEntry entry = Iterables.getOnlyElement(reader.entries());
+      Assert.assertEquals(123L, (long) entry.snapshotId());
+
+      List<Types.NestedField> fields = ((PartitionData) entry.file().partition()).getPartitionType().fields();
+      Assert.assertEquals(2, fields.size());
+      Assert.assertEquals(1000, fields.get(0).fieldId());
+      Assert.assertEquals("id_bucket", fields.get(0).name());
+      Assert.assertEquals(Types.IntegerType.get(), fields.get(0).type());
+
+      Assert.assertEquals(1001, fields.get(1).fieldId());
+      Assert.assertEquals("data_bucket", fields.get(1).name());
+      Assert.assertEquals(Types.IntegerType.get(), fields.get(1).type());
+    }
+  }
+
 }
