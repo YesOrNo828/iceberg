@@ -41,10 +41,6 @@ public class IcebergTableSink implements UpsertStreamTableSink<Row> {
   private final TableSchema tableSchema;
   private final Configuration conf;
 
-  public IcebergTableSink(boolean isAppendOnly, String tableIdentifier, TableSchema tableSchema) {
-    this(isAppendOnly, tableIdentifier, tableSchema, new Configuration());
-  }
-
   public IcebergTableSink(boolean isAppendOnly, String tableIdentifier, TableSchema tableSchema, Configuration conf) {
     this.isAppendOnly = isAppendOnly;
     this.tableIdentifier = tableIdentifier;

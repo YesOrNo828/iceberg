@@ -21,7 +21,7 @@ package org.apache.iceberg;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.List;
 
@@ -29,11 +29,11 @@ public class BaseCombinedScanTask implements CombinedScanTask {
   private final List<FileScanTask> tasks;
 
   public BaseCombinedScanTask(FileScanTask... tasks) {
-    this.tasks = ImmutableList.copyOf(tasks);
+    this.tasks = Lists.newArrayList(tasks);
   }
 
   public BaseCombinedScanTask(List<FileScanTask> tasks) {
-    this.tasks = ImmutableList.copyOf(tasks);
+    this.tasks = Lists.newArrayList(tasks);
   }
 
   @Override

@@ -48,10 +48,30 @@ public class TableMetadata {
   static final int SUPPORTED_TABLE_FORMAT_VERSION = 2;
   static final int INITIAL_SPEC_ID = 0;
 
+  /**
+   * @deprecated will be removed in 0.9.0; use newTableMetadata(Schema, PartitionSpec, String, Map) instead.
+   */
+  @Deprecated
+  public static TableMetadata newTableMetadata(TableOperations ops,
+                                               Schema schema,
+                                               PartitionSpec spec,
+                                               String location,
+                                               Map<String, String> properties) {
+    return newTableMetadata(schema, spec, location, properties, DEFAULT_TABLE_FORMAT_VERSION);
+  }
+
   public static TableMetadata newTableMetadata(Schema schema,
                                                PartitionSpec spec,
                                                String location,
                                                Map<String, String> properties) {
+    return newTableMetadata(schema, spec, location, properties, DEFAULT_TABLE_FORMAT_VERSION);
+  }
+
+  static TableMetadata newTableMetadata(Schema schema,
+                                        PartitionSpec spec,
+                                        String location,
+                                        Map<String, String> properties,
+                                        int formatVersion) {
     // reassign all column ids to ensure consistency
     AtomicInteger lastColumnId = new AtomicInteger(0);
     Schema freshSchema = TypeUtil.assignFreshIds(schema, lastColumnId::incrementAndGet);
@@ -62,6 +82,7 @@ public class TableMetadata {
     for (PartitionField field : spec.fields()) {
       // look up the name of the source field in the old schema to get the new schema's id
       String sourceName = schema.findColumnName(field.sourceId());
+      // reassign all partition fields with fresh partition field Ids to ensure consistency
       specBuilder.add(
           freshSchema.findField(sourceName).fieldId(),
           field.name(),
@@ -69,7 +90,7 @@ public class TableMetadata {
     }
     PartitionSpec freshSpec = specBuilder.build();
 
-    return new TableMetadata(null, DEFAULT_TABLE_FORMAT_VERSION, UUID.randomUUID().toString(), location,
+    return new TableMetadata(null, formatVersion, UUID.randomUUID().toString(), location,
         INITIAL_SEQUENCE_NUMBER, System.currentTimeMillis(),
         lastColumnId.get(), freshSchema, INITIAL_SPEC_ID, ImmutableList.of(freshSpec),
         ImmutableMap.copyOf(properties), -1, ImmutableList.of(),
@@ -198,6 +219,7 @@ public class TableMetadata {
                 List<Snapshot> snapshots,
                 List<HistoryEntry> snapshotLog,
                 List<MetadataLogEntry> previousFiles) {
+    Preconditions.checkArgument(specs != null && !specs.isEmpty(), "Partition specs cannot be null or empty");
     Preconditions.checkArgument(formatVersion <= SUPPORTED_TABLE_FORMAT_VERSION,
         "Unsupported format version: v%s", formatVersion);
     Preconditions.checkArgument(formatVersion == 1 || uuid != null,
@@ -365,8 +387,11 @@ public class TableMetadata {
         properties, currentSnapshotId, snapshots, snapshotLog, addPreviousFile(file, lastUpdatedMillis));
   }
 
+  // The caller is responsible to pass a newPartitionSpec with correct partition field IDs
   public TableMetadata updatePartitionSpec(PartitionSpec newPartitionSpec) {
     PartitionSpec.checkCompatibility(newPartitionSpec, schema);
+    ValidationException.check(formatVersion > 1 || PartitionSpec.hasSequentialIds(newPartitionSpec),
+        "Spec does not use sequential IDs that are required in v1: %s", newPartitionSpec);
 
     // if the spec already exists, use the same ID. otherwise, use 1 more than the highest ID.
     int newDefaultSpecId = INITIAL_SPEC_ID;
@@ -514,8 +539,12 @@ public class TableMetadata {
         currentSnapshotId, snapshots, newSnapshotLog, addPreviousFile(file, lastUpdatedMillis));
   }
 
+  // The caller is responsible to pass a updatedPartitionSpec with correct partition field IDs
   public TableMetadata buildReplacement(Schema updatedSchema, PartitionSpec updatedPartitionSpec,
-                                        Map<String, String> updatedProperties) {
+                                 Map<String, String> updatedProperties) {
+    ValidationException.check(formatVersion > 1 || PartitionSpec.hasSequentialIds(updatedPartitionSpec),
+        "Spec does not use sequential IDs that are required in v1: %s", updatedPartitionSpec);
+
     AtomicInteger nextLastColumnId = new AtomicInteger(0);
     Schema freshSchema = TypeUtil.assignFreshIds(updatedSchema, nextLastColumnId::incrementAndGet);
 
@@ -607,7 +636,7 @@ public class TableMetadata {
 
     // add all of the fields to the builder. IDs should not change.
     for (PartitionField field : partitionSpec.fields()) {
-      specBuilder.add(field.sourceId(), field.name(), field.transform().toString());
+      specBuilder.add(field.sourceId(), field.fieldId(), field.name(), field.transform().toString());
     }
 
     return specBuilder.build();
@@ -622,6 +651,7 @@ public class TableMetadata {
       String sourceName = partitionSpec.schema().findColumnName(field.sourceId());
       specBuilder.add(
           schema.findField(sourceName).fieldId(),
+          field.fieldId(),
           field.name(),
           field.transform().toString());
     }

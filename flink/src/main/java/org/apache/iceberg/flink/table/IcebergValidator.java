@@ -21,8 +21,17 @@ package org.apache.iceberg.flink.table;
 
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.MalformedURLException;
+import java.nio.file.Paths;
+import java.util.Optional;
 
 class IcebergValidator extends ConnectorDescriptorValidator {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergValidator.class);
+
   public static final String CONNECTOR_TYPE = "connector.type";
   public static final String CONNECTOR_TYPE_VALUE = "iceberg";
 
@@ -35,6 +44,11 @@ class IcebergValidator extends ConnectorDescriptorValidator {
   public static final String CONNECTOR_ICEBERG_TABLE_IDENTIFIER = "connector.iceberg-table.identifier";
   public static final String CONNECTOR_ICEBERG_CONFIGURATION_PATH = "connector.iceberg-configuration.path";
 
+  public static final String CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID = "connector.iceberg-table.from-snapshot-id";
+
+  public static final String CONNECTOR_ICEBERG_TABLE_SNAP_POLLING_INTERVAL_MILLIS =
+      "connector.iceberg-table.snapshots-polling-interval-millis";
+
   private static final IcebergValidator INSTANCE = new IcebergValidator();
 
   @Override
@@ -42,9 +56,31 @@ class IcebergValidator extends ConnectorDescriptorValidator {
     super.validate(properties);
     properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, false);
     properties.validateString(CONNECTOR_ICEBERG_TABLE_IDENTIFIER, false, 1);
+    properties.validateLong(CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID, true, 1);
+    properties.validateLong(CONNECTOR_ICEBERG_TABLE_SNAP_POLLING_INTERVAL_MILLIS, true, 1);
   }
 
   public static IcebergValidator getInstance() {
     return INSTANCE;
+  }
+
+  public Configuration getConfiguration(DescriptorProperties properties) {
+    Optional<String> confPathOptional = properties
+        .getOptionalString(IcebergValidator.CONNECTOR_ICEBERG_CONFIGURATION_PATH);
+    if (!confPathOptional.isPresent()) {
+      return new Configuration(false);
+    } else {
+      String confPath = null;
+      try {
+        confPath = confPathOptional.get();
+        Configuration conf = new Configuration(false);
+        conf.addResource(Paths.get(confPath, "hdfs-site.xml").toUri().toURL());
+        conf.addResource(Paths.get(confPath, "core-site.xml").toUri().toURL());
+        return conf;
+      } catch (MalformedURLException e) {
+        LOG.error("cannot find resource from path: {}.", confPath, e);
+        throw new RuntimeException(String.format("cannot find resource from path: %s.", confPath));
+      }
+    }
   }
 }

@@ -114,9 +114,9 @@ public class FlinkParquetReaders {
       List<Type> types = Lists.newArrayListWithExpectedSize(expectedFields.size());
       for (Types.NestedField field : expectedFields) {
         int id = field.fieldId();
-        if (idToConstant().containsKey(id)) {
+        if (getIdToConstant().containsKey(id)) {
           // containsKey is used because the constant may be null
-          reorderedFields.add(ParquetValueReaders.constant(idToConstant().get(id)));
+          reorderedFields.add(ParquetValueReaders.constant(getIdToConstant().get(id)));
           types.add(null);
         } else {
           ParquetValueReader<?> reader = readersById.get(id);

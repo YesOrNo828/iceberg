@@ -38,6 +38,7 @@ import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.flink.IcebergSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,41 +50,36 @@ public class IcebergTableFactory implements
     StreamTableSinkFactory<Tuple2<Boolean, Row>> {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergTableFactory.class);
 
+
   @Override
   public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(Map<String, String> properties) {
-    DescriptorProperties descProperties = new DescriptorProperties(true);
-    descProperties.putProperties(properties);
-    // Validate the properties values.
-    IcebergValidator.getInstance().validate(descProperties);
+    DescriptorProperties descProperties = getValidatedProperties(properties);
 
     // Create the IcebergTableSink instance.
     boolean isAppendOnly = descProperties
         .isValue(StreamTableDescriptorValidator.UPDATE_MODE, StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND);
     String tableIdentifier = descProperties.getString(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
     TableSchema schema = descProperties.getTableSchema(Schema.SCHEMA);
-    Optional<String> confPathOptional = descProperties
-        .getOptionalString(IcebergValidator.CONNECTOR_ICEBERG_CONFIGURATION_PATH);
-    if (!confPathOptional.isPresent()) {
-      return new IcebergTableSink(isAppendOnly, tableIdentifier, schema);
-    } else {
-      String confPath = null;
-      try {
-        confPath = confPathOptional.get();
-        Configuration conf = new Configuration(false);
-        conf.addResource(Paths.get(confPath, "hdfs-site.xml").toUri().toURL());
-        conf.addResource(Paths.get(confPath, "core-site.xml").toUri().toURL());
-        return new IcebergTableSink(isAppendOnly, tableIdentifier, schema, conf);
-      } catch (MalformedURLException e) {
-        LOG.error("cannot find resource from path: {}.", confPath, e);
-        throw new RuntimeException(String.format("cannot find resource from path: %s.", confPath));
-      }
-    }
+    Configuration conf = IcebergValidator.getInstance().getConfiguration(descProperties);
+    return new IcebergTableSink(isAppendOnly, tableIdentifier, schema, conf);
   }
 
   @Override
   public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
-    // TODO need to support this methods
-    throw new UnsupportedOperationException("Will support the stream table source later.");
+    DescriptorProperties descProperties = getValidatedProperties(properties);
+
+    // Initialize the iceberg table source instance.
+    String tableIdentifier = descProperties.getString(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
+    TableSchema schema = descProperties.getTableSchema(Schema.SCHEMA);
+    Configuration conf = IcebergValidator.getInstance().getConfiguration(descProperties);
+    // Get the optional config keys.
+    long fromSnapshotId = descProperties.getOptionalLong(IcebergValidator.CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID)
+        .orElse(IcebergSource.NON_CONSUMED_SNAPSHOT_ID);
+    long snapshotPollingIntervalMillis = descProperties
+        .getOptionalLong(IcebergValidator.CONNECTOR_ICEBERG_TABLE_SNAP_POLLING_INTERVAL_MILLIS)
+        .orElse(1000L);
+
+    return new IcebergTableSource(tableIdentifier, conf, fromSnapshotId, snapshotPollingIntervalMillis, schema);
   }
 
   @Override
@@ -104,6 +100,8 @@ public class IcebergTableFactory implements
     // Iceberg properties
     properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
     properties.add(IcebergValidator.CONNECTOR_ICEBERG_CONFIGURATION_PATH);
+    properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID);
+    properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_SNAP_POLLING_INTERVAL_MILLIS);
 
     // Flink schema properties
     properties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_DATA_TYPE);
@@ -121,5 +119,13 @@ public class IcebergTableFactory implements
     properties.add(Schema.SCHEMA + "." + DescriptorProperties.WATERMARK +
         ".#." + DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE);
     return properties;
+  }
+
+  private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+    DescriptorProperties descProperties = new DescriptorProperties(true);
+    descProperties.putProperties(properties);
+    // Validate the properties values.
+    IcebergValidator.getInstance().validate(descProperties);
+    return descProperties;
   }
 }
