@@ -34,6 +34,8 @@ import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.flink.IcebergSource;
 
 /**
  * Factory for creating configured instances of {@link IcebergTableSink} or source.
@@ -44,10 +46,7 @@ public class IcebergTableFactory implements
 
   @Override
   public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(Map<String, String> properties) {
-    DescriptorProperties descProperties = new DescriptorProperties(true);
-    descProperties.putProperties(properties);
-    // Validate the properties values.
-    IcebergValidator.getInstance().validate(descProperties);
+    DescriptorProperties descProperties = getValidatedProperties(properties);
 
     // Create the IcebergTableSink instance.
     boolean isAppendOnly = descProperties
@@ -59,8 +58,21 @@ public class IcebergTableFactory implements
 
   @Override
   public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
-    // TODO need to support this methods
-    throw new UnsupportedOperationException("Will support the stream table source later.");
+    DescriptorProperties descProperties = getValidatedProperties(properties);
+
+    // Initialize the iceberg table source instance.
+    String tableIdentifier = descProperties.getString(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
+    TableSchema schema = descProperties.getTableSchema(Schema.SCHEMA);
+    // TODO consider to pass a configuration from user side.
+    Configuration conf = new Configuration();
+    // Get the optional config keys.
+    long fromSnapshotId = descProperties.getOptionalLong(IcebergValidator.CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID)
+        .orElse(IcebergSource.NON_CONSUMED_SNAPSHOT_ID);
+    long snapshotPollingIntervalMillis = descProperties
+        .getOptionalLong(IcebergValidator.CONNECTOR_ICEBERG_TABLE_SNAP_POLLING_INTERVAL_MILLIS)
+        .orElse(1000L);
+
+    return new IcebergTableSource(tableIdentifier, conf, fromSnapshotId, snapshotPollingIntervalMillis, schema);
   }
 
   @Override
@@ -80,6 +92,8 @@ public class IcebergTableFactory implements
 
     // Iceberg properties
     properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
+    properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID);
+    properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_SNAP_POLLING_INTERVAL_MILLIS);
 
     // Flink schema properties
     properties.add(Schema.SCHEMA + ".#." + Schema.SCHEMA_DATA_TYPE);
@@ -97,5 +111,13 @@ public class IcebergTableFactory implements
     properties.add(Schema.SCHEMA + "." + DescriptorProperties.WATERMARK +
         ".#." + DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE);
     return properties;
+  }
+
+  private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {
+    DescriptorProperties descProperties = new DescriptorProperties(true);
+    descProperties.putProperties(properties);
+    // Validate the properties values.
+    IcebergValidator.getInstance().validate(descProperties);
+    return descProperties;
   }
 }
