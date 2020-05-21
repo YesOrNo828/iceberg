@@ -326,14 +326,6 @@ class Writer implements DataSourceWriter {
                   .overwrite()
                   .build();
 
-            case ORC:
-              return ORC.write(file)
-                  .createWriterFunc(SparkOrcWriter::new)
-                  .setAll(properties)
-                  .schema(dsSchema)
-                  .overwrite()
-                  .build();
-
             default:
               throw new UnsupportedOperationException("Cannot write unknown format: " + fileFormat);
           }
