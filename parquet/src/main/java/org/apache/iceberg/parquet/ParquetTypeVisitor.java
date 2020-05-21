@@ -22,7 +22,6 @@ package org.apache.iceberg.parquet;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import java.util.Deque;
-import java.util.Iterator;
 import java.util.List;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;

@@ -81,6 +81,7 @@ public class TestUtility {
     Preconditions.checkArgument(expected != null, "expected records shouldn't be null");
     Table newTable = new HadoopTables().load(tableLocation);
     List<Record> results = Lists.newArrayList(IcebergGenerics.read(newTable).build());
+
     expected.sort(comparator);
     results.sort(comparator);
     Assert.assertEquals("Should produce the expected record", expected, results);

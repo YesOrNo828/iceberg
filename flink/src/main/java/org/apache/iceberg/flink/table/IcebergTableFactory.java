@@ -21,11 +21,8 @@ package org.apache.iceberg.flink.table;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.net.MalformedURLException;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
