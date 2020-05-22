@@ -32,9 +32,9 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.junit.Assert;
-import org.junit.Test;
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 public class TestIcebergTableFactory {
@@ -90,8 +90,8 @@ public class TestIcebergTableFactory {
     // Test table source.
     DescriptorProperties descriptorProperties = createDescriptor(schema, "/tmp/test0.txt");
     TableSource source = TableFactoryService
-      .find(IcebergTableFactory.class, descriptorProperties.asMap(), this.getClass().getClassLoader())
-      .createTableSource(descriptorProperties.asMap());
+        .find(IcebergTableFactory.class, descriptorProperties.asMap(), this.getClass().getClassLoader())
+        .createTableSource(descriptorProperties.asMap());
     Assert.assertTrue(source instanceof IcebergTableSource);
     IcebergTableSource iSource = (IcebergTableSource) source;
     Assert.assertEquals(schema, iSource.getTableSchema());
@@ -99,8 +99,8 @@ public class TestIcebergTableFactory {
     // Test table sink.
     descriptorProperties = createDescriptor(schema, "/tmp/test1.txt");
     TableSink sink = TableFactoryService
-      .find(IcebergTableFactory.class, descriptorProperties.asMap(), this.getClass().getClassLoader())
-      .createTableSink(descriptorProperties.asMap());
+        .find(IcebergTableFactory.class, descriptorProperties.asMap(), this.getClass().getClassLoader())
+        .createTableSink(descriptorProperties.asMap());
     Assert.assertTrue(sink instanceof IcebergTableSink);
     IcebergTableSink iSink = (IcebergTableSink) sink;
     Assert.assertEquals(schema, iSink.getTableSchema());

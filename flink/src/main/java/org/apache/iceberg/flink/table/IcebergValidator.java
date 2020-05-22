@@ -19,15 +19,14 @@
 
 package org.apache.iceberg.flink.table;
 
+import java.net.MalformedURLException;
+import java.nio.file.Paths;
+import java.util.Optional;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.MalformedURLException;
-import java.nio.file.Paths;
-import java.util.Optional;
 
 class IcebergValidator extends ConnectorDescriptorValidator {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergValidator.class);
