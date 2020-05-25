@@ -70,6 +70,11 @@ public class BaseTable implements Table, HasTableOperations {
   }
 
   @Override
+  public PrimaryKey primaryKey() {
+    return ops.current().primaryKey();
+  }
+
+  @Override
   public Map<String, String> properties() {
     return ops.current().properties();
   }
