@@ -44,6 +44,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
@@ -131,6 +132,8 @@ public class FlinkTypeToType extends FlinkTypeVisitor<Type> {
     } else if (inner instanceof TimeType) {
       return Types.TimeType.get();
     } else if (inner instanceof TimestampType) {
+      return Types.TimestampType.withoutZone();
+    } else if (inner instanceof ZonedTimestampType) {
       return Types.TimestampType.withZone();
     } else if (inner instanceof DecimalType) {
       DecimalType decimalType = (DecimalType) inner;

@@ -21,6 +21,7 @@ package org.apache.iceberg.flink;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
 import java.io.File;
 import java.io.IOException;
 import java.security.PrivilegedActionException;
@@ -28,12 +29,11 @@ import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.FiniteTestSource;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
@@ -46,6 +46,7 @@ import org.apache.iceberg.Tables;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.hadoop.KerberosLoginUtil;
 import org.apache.iceberg.types.Types;
@@ -73,7 +74,7 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
 
   private static final Schema SCHEMA = new Schema(
       Types.NestedField.optional(1, "word", Types.StringType.get()),
-      Types.NestedField.optional(2, "count", Types.IntegerType.get())
+      Types.NestedField.optional(2, "num", Types.IntegerType.get())
   );
 
   private Table createTestIcebergTable() {
@@ -96,7 +97,7 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
   }
 
   @Test
-  public void testKerberos() {
+  public void testCreateTableWithKerberos() {
     String tableLocationPre = "hdfs://bdms-test/user/sloth/iceberg/";
     String hdfsLocation = "/Users/yexianxun/dev/env/mammut-test-hive/hdfs-site.xml";
     String coreLocation = "/Users/yexianxun/dev/env/mammut-test-hive/core-site.xml";
@@ -113,8 +114,43 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
         .build();
 
     Tables tables = new HadoopTables(conf);
-    Table table = tables.create(SCHEMA, spec, location);
-    table.currentSnapshot();
+    try {
+      tables.load(location);
+    } catch (NoSuchTableException e) {
+      Table table = tables.create(SCHEMA, spec, location);
+      Assert.assertNotNull(table);
+    }
+  }
+
+  @Test
+  public void testCreateTableTimePartitionWithKerberos() {
+    String tableLocationPre = "hdfs://bdms-test/user/sloth/iceberg/";
+    String hdfsLocation = "/Users/yexianxun/dev/env/mammut-test-hive/hdfs-site.xml";
+    String coreLocation = "/Users/yexianxun/dev/env/mammut-test-hive/core-site.xml";
+
+    Configuration conf = new Configuration(false);
+    conf.addResource(new Path(hdfsLocation));
+    conf.addResource(new Path(coreLocation));
+    initKrbConf(conf);
+    //    conf.set(KerberosLoginUtil.classPathKey, "/Users/yexianxun/dev/env/mammut-test-hive");
+    String location = tableLocationPre + "time_partition_2";
+    Schema SCHEMA = new Schema(
+        Types.NestedField.optional(1, "ts", Types.TimestampType.withoutZone()),
+        Types.NestedField.optional(2, "word", Types.StringType.get()),
+        Types.NestedField.optional(3, "num", Types.IntegerType.get())
+    );
+    PartitionSpec spec = PartitionSpec
+        .builderFor(SCHEMA)
+        .hour("ts")
+        .build();
+
+    Tables tables = new HadoopTables(conf);
+    try {
+      tables.load(location);
+    } catch (NoSuchTableException e) {
+      Table table = tables.create(SCHEMA, spec, location);
+      Assert.assertNotNull(table);
+    }
   }
 
   @Test
@@ -124,26 +160,30 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
     env.enableCheckpointing(100);
     env.setParallelism(1);
 
-    RowTypeInfo flinkSchema = new RowTypeInfo(
-        org.apache.flink.api.common.typeinfo.Types.STRING,
-        org.apache.flink.api.common.typeinfo.Types.INT
-    );
-    TupleTypeInfo<Tuple2<Boolean, Row>> tupleTypeInfo = new TupleTypeInfo<>(
-        org.apache.flink.api.common.typeinfo.Types.BOOLEAN, flinkSchema);
+    TableSchema flinkSchema = TableSchema.builder()
+        .field("word", DataTypes.STRING())
+        .field("num", DataTypes.INT())
+        .build();
 
-    List<Tuple2<Boolean, Row>> rows = Lists.newArrayList(
-        Tuple2.of(true, Row.of("hello", 2)),
-        Tuple2.of(true, Row.of("world", 2)),
-        Tuple2.of(true, Row.of("word", 1))
+    List<Row> rows = Lists.newArrayList(
+        Row.of("hello", 2),
+        Row.of("world", 2),
+        Row.of("word", 1)
     );
 
-    DataStream<Tuple2<Boolean, Row>> dataStream = env.addSource(new FiniteTestSource<>(rows), tupleTypeInfo);
+    DataStream<Row> dataStream = env.addSource(new FiniteTestSource<>(rows), flinkSchema.toRowType());
 
     Table table = createTestIcebergTable();
     Assert.assertNotNull(table);
 
     // Output the data stream to stdout.
-    dataStream.addSink(new IcebergSinkFunction(tableLocation, flinkSchema));
+    dataStream.map(new WordCountData.Transformer())
+        .addSink(IcebergSinkFunction
+            .builder()
+            .withTableSchema(flinkSchema)
+            .withTableLocation(tableLocation)
+            .withConfiguration(new Configuration(false))
+            .build());
 
     // Execute the program.
     env.execute("Test Iceberg DataStream");
@@ -160,9 +200,9 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
     Set<Record> real = Sets.newHashSet(records);
     Record record = GenericRecord.create(SCHEMA);
     Set<Record> expected = Sets.newHashSet(
-        record.copy(ImmutableMap.of("word", "hello", "count", 2)),
-        record.copy(ImmutableMap.of("word", "word", "count", 1)),
-        record.copy(ImmutableMap.of("word", "world", "count", 2))
+        record.copy(ImmutableMap.of("word", "hello", "num", 2)),
+        record.copy(ImmutableMap.of("word", "word", "num", 1)),
+        record.copy(ImmutableMap.of("word", "world", "num", 2))
     );
     Assert.assertEquals("Should produce the expected record", expected, real);
   }
@@ -190,20 +230,18 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
     String tableLocationPre = "hdfs://bdms-test/user/sloth/iceberg/";
 //    String tableLocationPre = "hdfs://bdms-test/user/sloth/yxx_iceberg/";
 
-    RowTypeInfo flinkSchema = new RowTypeInfo(
-        org.apache.flink.api.common.typeinfo.Types.STRING,
-        org.apache.flink.api.common.typeinfo.Types.INT
-    );
-    TupleTypeInfo<Tuple2<Boolean, Row>> tupleTypeInfo = new TupleTypeInfo<>(
-        org.apache.flink.api.common.typeinfo.Types.BOOLEAN, flinkSchema);
+    TableSchema flinkSchema = TableSchema.builder()
+        .field("word", DataTypes.STRING())
+        .field("num", DataTypes.INT())
+        .build();
 
-    List<Tuple2<Boolean, Row>> rows = Lists.newArrayList(
-        Tuple2.of(true, Row.of("hello", 2)),
-        Tuple2.of(true, Row.of("world", 2)),
-        Tuple2.of(true, Row.of("word", 1))
+    List<Row> rows = Lists.newArrayList(
+        Row.of("hello", 2),
+        Row.of("world", 2),
+        Row.of("word", 1)
     );
 
-    DataStream<Tuple2<Boolean, Row>> dataStream = env.addSource(new FiniteTestSource<>(rows), tupleTypeInfo);
+    DataStream<Row> dataStream = env.addSource(new FiniteTestSource<>(rows), flinkSchema.toRowType());
 
     Configuration conf = new Configuration(false);
     conf.addResource(new Path(hdfsLocation));
@@ -221,27 +259,25 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
     Assert.assertNotNull(table);
 
     // Output the data stream to stdout.
-    dataStream.addSink(new IcebergSinkFunction(location, flinkSchema, conf));
+    dataStream.map(new WordCountData.Transformer())
+        .addSink(IcebergSinkFunction
+            .builder()
+            .withTableSchema(flinkSchema)
+            .withTableLocation(location)
+            .withConfiguration(conf)
+            .build());
 
     // Execute the program.
     env.execute("Test Iceberg DataStream");
 
     // Assert the iceberg table's records.
     table.refresh();
-    Iterable<Record> results = IcebergGenerics.read(table).build();
-    List<Record> records = Lists.newArrayList(results);
-    // The stream will produce (hello,2),(world,2),(word,1),(hello,2),(world,2),(word,1) actually,
-    // because the FiniteTestSource will produce double row list.
-    Assert.assertEquals(6, records.size());
-
-    // The hash set will remove the duplicated rows.
-    Set<Record> real = Sets.newHashSet(records);
-    Record record = GenericRecord.create(SCHEMA);
-    Set<Record> expected = Sets.newHashSet(
-        record.copy(ImmutableMap.of("word", "hello", "count", 2)),
-        record.copy(ImmutableMap.of("word", "word", "count", 1)),
-        record.copy(ImmutableMap.of("word", "world", "count", 2))
-    );
-    Assert.assertEquals("Should produce the expected record", expected, real);
+    List<Record> records = Lists.newArrayList();
+    for (int i = 0; i < 2; i++) {
+      for (Row row : rows) {
+        records.add(WordCountData.RECORD.copy(ImmutableMap.of("word", row.getField(0), "num", row.getField(1))));
+      }
+    }
+    TestUtility.checkIcebergTableRecords(location, Lists.newArrayList(records), WordCountData.RECORD_COMPARATOR);
   }
 }

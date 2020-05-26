@@ -26,6 +26,8 @@ import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.LocalDateTime;
+
 public class TestPartitionKey {
 
   @Test
@@ -33,17 +35,20 @@ public class TestPartitionKey {
     Schema schema = new Schema(
         Types.NestedField.optional(1, "level", Types.StringType.get()),
         Types.NestedField.optional(2, "sequence_number", Types.LongType.get()),
-        Types.NestedField.optional(3, "message", Types.StringType.get())
+        Types.NestedField.optional(3, "message", Types.StringType.get()),
+        Types.NestedField.optional(4, "ts", Types.TimestampType.withoutZone())
     );
 
     PartitionSpec spec = PartitionSpec.builderFor(schema)
+        .hour("ts")
         .identity("level")
         .identity("sequence_number")
         .build();
     PartitionKey.Builder builder = new PartitionKey.Builder(spec);
-
-    Row row = Row.of("info", 100L, "This is an info message");
+    LocalDateTime ldt = LocalDateTime.of(2020, 6, 1, 11, 0);
+    Row row = Row.of(ldt, "info", 100L, "This is an info message");
     PartitionKey pk = builder.build(row);
-    Assert.assertArrayEquals(new Object[]{"info", 100L}, pk.getPartitionTuple());
+    String actual = spec.partitionToPath(pk);
+    Assert.assertEquals("should be the same", "ts_hour=2020-06-01-11/level=info/sequence_number=100", actual);
   }
 }

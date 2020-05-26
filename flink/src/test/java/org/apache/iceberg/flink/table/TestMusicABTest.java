@@ -10,30 +10,39 @@ import org.apache.iceberg.hadoop.KerberosLoginUtil;
 import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.security.krb5.KrbException;
 
+import java.io.File;
 import java.io.IOException;
 
 /**
  * Created by yexianxun@corp.netease.com on 2020/5/18.
  */
 public class TestMusicABTest {
+  private static final Logger LOG = LoggerFactory.getLogger(TestMusicABTest.class);
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
   private Configuration conf;
 
   private static final org.apache.iceberg.Schema SCHEMA = new org.apache.iceberg.Schema(
-      Types.NestedField.optional(1, "deviceid", Types.StringType.get()),
-      Types.NestedField.optional(2, "userid", Types.StringType.get()),
-      Types.NestedField.optional(3, "ip", Types.StringType.get()),
-      Types.NestedField.optional(4, "appver", Types.StringType.get()),
-      Types.NestedField.optional(5, "os", Types.StringType.get()),
-      Types.NestedField.optional(6, "osver", Types.StringType.get()),
-      Types.NestedField.optional(7, "logtime", Types.LongType.get()),
-      Types.NestedField.optional(8, "action", Types.StringType.get()),
-      Types.NestedField.optional(9, "props", Types.MapType.ofOptional(12, 13, Types.StringType.get(), Types.StringType.get())),
-      Types.NestedField.optional(10, "ds_timestamp", Types.LongType.get()),
-      Types.NestedField.optional(11, "ds_fields", Types.MapType.ofOptional(14, 15, Types.StringType.get(), Types.StringType.get()))
-  );
+      Types.NestedField.optional(1, "flink_process_time", Types.TimestampType.withoutZone()),
+      Types.NestedField.optional(2, "deviceid", Types.StringType.get()),
+      Types.NestedField.optional(3, "userid", Types.StringType.get()),
+      Types.NestedField.optional(4, "ip", Types.StringType.get()),
+      Types.NestedField.optional(5, "appver", Types.StringType.get()),
+      Types.NestedField.optional(6, "os", Types.StringType.get()),
+      Types.NestedField.optional(7, "osver", Types.StringType.get()),
+      Types.NestedField.optional(8, "logtime", Types.LongType.get()),
+      Types.NestedField.optional(9, "action", Types.StringType.get()),
+      Types.NestedField.optional(10, "props", Types.MapType.ofOptional(13, 14, Types.StringType.get(), Types.StringType.get())),
+      Types.NestedField.optional(11, "ds_timestamp", Types.LongType.get()),
+      Types.NestedField.optional(12, "ds_fields", Types.MapType.ofOptional(15, 16, Types.StringType.get(), Types.StringType.get()))
+      );
 
   @Before
   public void createConfiguration() {
@@ -66,6 +75,42 @@ public class TestMusicABTest {
       Assert.assertNotNull(table);
     } catch (NoSuchTableException e) {
       e.printStackTrace();
+      Table table = hadoopTables.create(SCHEMA, spec, tableLocation);
+      Assert.assertNotNull(table);
+    }
+  }
+
+  @Test
+  public void createPartitionTableLocal() throws IOException {
+    File folder = tempFolder.newFolder();
+    String tableLocation = folder.getAbsolutePath();    PartitionSpec spec = PartitionSpec
+        .builderFor(SCHEMA)
+        .hour("flink_process_time")
+        .build();
+    HadoopTables hadoopTables = new HadoopTables(new Configuration());
+    try {
+      Table table = new HadoopTables().create(SCHEMA, spec, tableLocation);
+      Assert.assertNotNull(table);
+    } catch (NoSuchTableException e) {
+      LOG.error("failed:", e);
+      Table table = hadoopTables.create(SCHEMA, spec, tableLocation);
+      Assert.assertNotNull(table);
+    }
+  }
+
+  @Test
+  public void createPartitionTable() throws IOException {
+    String tableLocation = "hdfs://bdms-test/user/sloth/iceberg/music_user_action_abtest_partition_2";
+    PartitionSpec spec = PartitionSpec
+        .builderFor(SCHEMA)
+        .hour("flink_process_time")
+        .build();
+    HadoopTables hadoopTables = new HadoopTables(conf);
+    try {
+      initKrbConf(conf);
+      Table table = hadoopTables.load(tableLocation);
+      Assert.assertNotNull(table);
+    } catch (NoSuchTableException e) {
       Table table = hadoopTables.create(SCHEMA, spec, tableLocation);
       Assert.assertNotNull(table);
     }

@@ -29,6 +29,18 @@ import org.junit.Test;
 public class TestFlinkSchemaUtil {
 
   @Test
+  public void testConvertFlinkTimestampToIceberg() {
+    TableSchema flinkSchema = TableSchema.builder()
+        .field("ts", DataTypes.TIMESTAMP(3))
+        .build();
+    Schema actualSchema = FlinkSchemaUtil.convert(flinkSchema);
+    Schema expectedSchema = new Schema(
+        Types.NestedField.optional(0, "ts", Types.TimestampType.withZone(), null)
+    );
+    Assert.assertEquals(expectedSchema.toString(), actualSchema.toString());
+  }
+
+  @Test
   public void testConvertFlinkSchemaToIcebergSchema() {
     TableSchema flinkSchema = TableSchema.builder()
         .field("id", DataTypes.INT().notNull())

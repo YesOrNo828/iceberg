@@ -22,7 +22,7 @@ package org.apache.iceberg.flink.table;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
-class IcebergValidator extends ConnectorDescriptorValidator {
+public class IcebergValidator extends ConnectorDescriptorValidator {
   public static final String CONNECTOR_TYPE = "connector.type";
   public static final String CONNECTOR_TYPE_VALUE = "iceberg";
 
