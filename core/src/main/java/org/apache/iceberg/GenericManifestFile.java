@@ -56,6 +56,7 @@ public class GenericManifestFile
   private Long existingRowsCount = null;
   private Long deletedRowsCount = null;
   private List<PartitionFieldSummary> partitions = null;
+  private ManifestType manifestType = ManifestType.DATA_FILES;
 
   /**
    * Used by Avro reflection to instantiate this class when reading manifest files.
@@ -105,7 +106,7 @@ public class GenericManifestFile
                              long sequenceNumber, long minSequenceNumber, Long snapshotId,
                              int addedFilesCount, long addedRowsCount, int existingFilesCount,
                              long existingRowsCount, int deletedFilesCount, long deletedRowsCount,
-                             List<PartitionFieldSummary> partitions) {
+                             List<PartitionFieldSummary> partitions, ManifestType manifestType) {
     this.avroSchema = AVRO_SCHEMA;
     this.manifestPath = path;
     this.length = length;
@@ -121,6 +122,7 @@ public class GenericManifestFile
     this.deletedRowsCount = deletedRowsCount;
     this.partitions = partitions;
     this.fromProjectionPos = null;
+    this.manifestType = manifestType;
   }
 
   /**
@@ -144,6 +146,7 @@ public class GenericManifestFile
     this.deletedRowsCount = toCopy.deletedRowsCount;
     this.partitions = copyList(toCopy.partitions, PartitionFieldSummary::copy);
     this.fromProjectionPos = toCopy.fromProjectionPos;
+    this.manifestType = toCopy.manifestType;
   }
 
   /**
@@ -188,6 +191,11 @@ public class GenericManifestFile
   @Override
   public long minSequenceNumber() {
     return minSequenceNumber;
+  }
+
+  @Override
+  public ManifestType manifestType() {
+    return manifestType;
   }
 
   @Override
@@ -274,6 +282,8 @@ public class GenericManifestFile
         return deletedRowsCount;
       case 12:
         return partitions;
+      case 13:
+        return manifestType.toString();
       default:
         throw new UnsupportedOperationException("Unknown field ordinal: " + pos);
     }
@@ -328,6 +338,9 @@ public class GenericManifestFile
       case 12:
         this.partitions = (List<PartitionFieldSummary>) value;
         return;
+      case 13:
+        this.manifestType = value == null ? ManifestType.DATA_FILES : ManifestType.valueOf(value.toString());
+        return;
       default:
         // ignore the object, it must be from a newer version of the format
     }
@@ -378,6 +391,7 @@ public class GenericManifestFile
         .add("deleted_data_files_count", deletedFilesCount)
         .add("deleted_rows_count", deletedRowsCount)
         .add("partitions", partitions)
+        .add("manifest_type", manifestType)
         .toString();
   }
 
@@ -397,7 +411,7 @@ public class GenericManifestFile
             toCopy.sequenceNumber(), toCopy.minSequenceNumber(), toCopy.snapshotId(),
             toCopy.addedFilesCount(), toCopy.addedRowsCount(), toCopy.existingFilesCount(),
             toCopy.existingRowsCount(), toCopy.deletedFilesCount(), toCopy.deletedRowsCount(),
-            copyList(toCopy.partitions(), PartitionFieldSummary::copy));
+            copyList(toCopy.partitions(), PartitionFieldSummary::copy), toCopy.manifestType());
       }
     }
 

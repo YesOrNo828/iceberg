@@ -30,7 +30,7 @@ package org.apache.iceberg;
  */
 public interface AppendFiles extends SnapshotUpdate<AppendFiles> {
   /**
-   * Append a {@link DataFile} to the table.
+   * Append a {@link DataFile} to the table, it could be a data file or delete differential file.
    *
    * @param file a data file
    * @return this for method chaining

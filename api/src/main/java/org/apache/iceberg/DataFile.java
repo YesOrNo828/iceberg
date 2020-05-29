@@ -58,8 +58,9 @@ public interface DataFile {
         optional(128, "upper_bounds", MapType.ofRequired(129, 130,
             IntegerType.get(), BinaryType.get())),
         optional(131, "key_metadata", BinaryType.get()),
-        optional(132, "split_offsets", ListType.ofRequired(133, LongType.get()))
-        // NEXT ID TO ASSIGN: 134
+        optional(132, "split_offsets", ListType.ofRequired(133, LongType.get())),
+        optional(134, "data_file_type", StringType.get())
+        // NEXT ID TO ASSIGN: 135
     );
   }
 
@@ -143,4 +144,16 @@ public interface DataFile {
   List<Long> splitOffsets();
 
   byte[] serialize() throws IOException;
+
+  /**
+   * @return data file type to indicate that it's a data base file (DATA_FILE) or delete differential file
+   * (DELETE_DIFF_FILE).
+   */
+  default DataFileType dataFileType() {
+    return DataFileType.DATA_BASE_FILE;
+  }
+
+  enum DataFileType {
+    DATA_BASE_FILE, DELETE_DIFF_FILE
+  }
 }

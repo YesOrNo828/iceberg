@@ -331,8 +331,17 @@ abstract class SnapshotProducer<ThisT> implements SnapshotUpdate<ThisT> {
         ops.metadataFileLocation(FileFormat.AVRO.addExtension(commitUUID + "-m" + manifestCount.getAndIncrement())));
   }
 
+  /**
+   * TODO need to accept the manifest type such as DELETE_FILES as an input.
+   */
   protected ManifestWriter newManifestWriter(PartitionSpec spec) {
-    return ManifestFiles.write(ops.current().formatVersion(), spec, newManifestOutput(), snapshotId());
+    return ManifestFiles.write(ops.current().formatVersion(), spec, newManifestOutput(), snapshotId(),
+        ManifestFile.ManifestType.DATA_FILES);
+  }
+
+  protected ManifestWriter newManifestWriter(PartitionSpec spec, ManifestFile.ManifestType manifestType) {
+    return ManifestFiles.write(ops.current().formatVersion(), spec, newManifestOutput(), snapshotId(),
+        manifestType);
   }
 
   protected long snapshotId() {
@@ -394,7 +403,7 @@ abstract class SnapshotProducer<ThisT> implements SnapshotUpdate<ThisT> {
 
       return new GenericManifestFile(manifest.path(), manifest.length(), manifest.partitionSpecId(),
           manifest.sequenceNumber(), manifest.minSequenceNumber(), snapshotId, addedFiles, addedRows, existingFiles,
-          existingRows, deletedFiles, deletedRows, stats.summaries());
+          existingRows, deletedFiles, deletedRows, stats.summaries(), manifest.manifestType());
 
     } catch (IOException e) {
       throw new RuntimeIOException(e, "Failed to read manifest: %s", manifest.path());

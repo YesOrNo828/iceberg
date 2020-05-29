@@ -139,6 +139,8 @@ class V2Metadata {
           return wrapped.deletedRowsCount();
         case 12:
           return wrapped.partitions();
+        case 13:
+          return wrapped.manifestType();
         default:
           throw new UnsupportedOperationException("Unknown field ordinal: " + pos);
       }
@@ -172,6 +174,11 @@ class V2Metadata {
     @Override
     public Long snapshotId() {
       return wrapped.snapshotId();
+    }
+
+    @Override
+    public ManifestType manifestType() {
+      return wrapped.manifestType();
     }
 
     @Override

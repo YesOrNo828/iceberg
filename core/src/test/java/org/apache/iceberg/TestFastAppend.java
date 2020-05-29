@@ -56,9 +56,10 @@ public class TestFastAppend extends TableTestBase {
     Snapshot pending = table.newFastAppend()
         .appendFile(FILE_A)
         .appendFile(FILE_B)
+        .appendFile(DIFF_A)
         .apply();
 
-    validateSnapshot(base.currentSnapshot(), pending, FILE_A, FILE_B);
+    validateSnapshot(base.currentSnapshot(), pending, 2, FILE_A, FILE_B, DIFF_A);
   }
 
   @Test
