@@ -127,6 +127,11 @@ class V1Metadata {
     }
 
     @Override
+    public ManifestType manifestType() {
+      return wrapped.manifestType();
+    }
+
+    @Override
     public boolean hasAddedFiles() {
       return wrapped.hasAddedFiles();
     }
@@ -324,6 +329,8 @@ class V1Metadata {
           return wrapped.keyMetadata();
         case 12:
           return wrapped.splitOffsets();
+        case 13:
+          return wrapped.dataFileType() != null ? wrapped.dataFileType().toString() : null;
       }
       throw new IllegalArgumentException("Unknown field ordinal: " + pos);
     }
@@ -411,6 +418,11 @@ class V1Metadata {
     @Override
     public DataFile copyWithoutStats() {
       return wrapped.copyWithoutStats();
+    }
+
+    @Override
+    public DataFileType dataFileType() {
+      return wrapped.dataFileType();
     }
   }
 }

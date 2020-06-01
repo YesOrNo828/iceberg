@@ -57,7 +57,7 @@ public class TestManifestListVersions {
   private static final ManifestFile TEST_MANIFEST = new GenericManifestFile(
       PATH, LENGTH, SPEC_ID, SEQ_NUM, MIN_SEQ_NUM, SNAPSHOT_ID,
       ADDED_FILES, ADDED_ROWS, EXISTING_FILES, EXISTING_ROWS, DELETED_FILES, DELETED_ROWS,
-      PARTITION_SUMMARIES);
+      PARTITION_SUMMARIES, ManifestFile.ManifestType.DATA_FILES);
 
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();

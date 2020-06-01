@@ -66,12 +66,21 @@ public class ManifestFiles {
    * Manifests created by this writer have all entry snapshot IDs set to null.
    * All entries will inherit the snapshot ID that will be assigned to the manifest on commit.
    *
-   * @param spec {@link PartitionSpec} used to produce {@link DataFile} partition tuples
+   * @param spec       {@link PartitionSpec} used to produce {@link DataFile} partition tuples
    * @param outputFile the destination file location
    * @return a manifest writer
    */
   public static ManifestWriter write(PartitionSpec spec, OutputFile outputFile) {
-    return write(1, spec, outputFile, null);
+    return write(spec, outputFile, ManifestFile.ManifestType.DATA_FILES);
+  }
+
+  public static ManifestWriter write(PartitionSpec spec, OutputFile outputFile,
+                                     ManifestFile.ManifestType manifestType) {
+    return write(1, spec, outputFile, null, manifestType);
+  }
+
+  public static ManifestWriter write(int formatVersion, PartitionSpec spec, OutputFile outputFile, Long snapshotId) {
+    return write(formatVersion, spec, outputFile, snapshotId, ManifestFile.ManifestType.DATA_FILES);
   }
 
   /**
@@ -83,12 +92,13 @@ public class ManifestFiles {
    * @param snapshotId a snapshot ID for the manifest entries, or null for an inherited ID
    * @return a manifest writer
    */
-  public static ManifestWriter write(int formatVersion, PartitionSpec spec, OutputFile outputFile, Long snapshotId) {
+  public static ManifestWriter write(int formatVersion, PartitionSpec spec, OutputFile outputFile,
+                                     Long snapshotId, ManifestFile.ManifestType manifestType) {
     switch (formatVersion) {
       case 1:
         return new ManifestWriter.V1Writer(spec, outputFile, snapshotId);
       case 2:
-        return new ManifestWriter.V2Writer(spec, outputFile, snapshotId);
+        return new ManifestWriter.V2Writer(spec, outputFile, snapshotId, manifestType);
     }
     throw new UnsupportedOperationException("Cannot write manifest for table version: " + formatVersion);
   }
@@ -96,12 +106,13 @@ public class ManifestFiles {
   static ManifestFile copyAppendManifest(int formatVersion,
                                          InputFile toCopy, Map<Integer, PartitionSpec> specsById,
                                          OutputFile outputFile, long snapshotId,
-                                         SnapshotSummary.Builder summaryBuilder) {
+                                         SnapshotSummary.Builder summaryBuilder,
+                                         ManifestFile.ManifestType manifestType) {
     // use metadata that will add the current snapshot's ID for the rewrite
     InheritableMetadata inheritableMetadata = InheritableMetadataFactory.forCopy(snapshotId);
     try (ManifestReader reader = new ManifestReader(toCopy, specsById, inheritableMetadata)) {
       return copyManifestInternal(
-          formatVersion, reader, outputFile, snapshotId, summaryBuilder, ManifestEntry.Status.ADDED);
+          formatVersion, reader, outputFile, snapshotId, summaryBuilder, ManifestEntry.Status.ADDED, manifestType);
     } catch (IOException e) {
       throw new RuntimeIOException(e, "Failed to close manifest: %s", toCopy.location());
     }
@@ -110,12 +121,13 @@ public class ManifestFiles {
   static ManifestFile copyRewriteManifest(int formatVersion,
                                           InputFile toCopy, Map<Integer, PartitionSpec> specsById,
                                           OutputFile outputFile, long snapshotId,
-                                          SnapshotSummary.Builder summaryBuilder) {
+                                          SnapshotSummary.Builder summaryBuilder,
+                                          ManifestFile.ManifestType manifestType) {
     // for a rewritten manifest all snapshot ids should be set. use empty metadata to throw an exception if it is not
     InheritableMetadata inheritableMetadata = InheritableMetadataFactory.empty();
     try (ManifestReader reader = new ManifestReader(toCopy, specsById, inheritableMetadata)) {
       return copyManifestInternal(
-          formatVersion, reader, outputFile, snapshotId, summaryBuilder, ManifestEntry.Status.EXISTING);
+          formatVersion, reader, outputFile, snapshotId, summaryBuilder, ManifestEntry.Status.EXISTING, manifestType);
     } catch (IOException e) {
       throw new RuntimeIOException(e, "Failed to close manifest: %s", toCopy.location());
     }
@@ -123,8 +135,9 @@ public class ManifestFiles {
 
   private static ManifestFile copyManifestInternal(int formatVersion, ManifestReader reader, OutputFile outputFile,
                                                    long snapshotId, SnapshotSummary.Builder summaryBuilder,
-                                                   ManifestEntry.Status allowedEntryStatus) {
-    ManifestWriter writer = write(formatVersion, reader.spec(), outputFile, snapshotId);
+                                                   ManifestEntry.Status allowedEntryStatus,
+                                                   ManifestFile.ManifestType manifestType) {
+    ManifestWriter writer = write(formatVersion, reader.spec(), outputFile, snapshotId, manifestType);
     boolean threw = true;
     try {
       for (ManifestEntry entry : reader.entries()) {

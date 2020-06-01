@@ -19,10 +19,18 @@
 
 package org.apache.iceberg.flink.table;
 
+import java.net.MalformedURLException;
+import java.nio.file.Paths;
+import java.util.Optional;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class IcebergValidator extends ConnectorDescriptorValidator {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergValidator.class);
+
   public static final String CONNECTOR_TYPE = "connector.type";
   public static final String CONNECTOR_TYPE_VALUE = "iceberg";
 
@@ -33,6 +41,7 @@ class IcebergValidator extends ConnectorDescriptorValidator {
   public static final int CONNECTOR_PROPERTY_VERSION_VALUE = 1;
 
   public static final String CONNECTOR_ICEBERG_TABLE_IDENTIFIER = "connector.iceberg-table.identifier";
+  public static final String CONNECTOR_ICEBERG_CONFIGURATION_PATH = "connector.iceberg-configuration.path";
 
   public static final String CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID = "connector.iceberg-table.from-snapshot-id";
 
@@ -52,5 +61,25 @@ class IcebergValidator extends ConnectorDescriptorValidator {
 
   public static IcebergValidator getInstance() {
     return INSTANCE;
+  }
+
+  public Configuration getConfiguration(DescriptorProperties properties) {
+    Optional<String> confPathOptional = properties
+        .getOptionalString(IcebergValidator.CONNECTOR_ICEBERG_CONFIGURATION_PATH);
+    if (!confPathOptional.isPresent()) {
+      return new Configuration(false);
+    } else {
+      String confPath = null;
+      try {
+        confPath = confPathOptional.get();
+        Configuration conf = new Configuration(false);
+        conf.addResource(Paths.get(confPath, "hdfs-site.xml").toUri().toURL());
+        conf.addResource(Paths.get(confPath, "core-site.xml").toUri().toURL());
+        return conf;
+      } catch (MalformedURLException e) {
+        LOG.error("cannot find resource from path: {}.", confPath, e);
+        throw new RuntimeException(String.format("cannot find resource from path: %s.", confPath));
+      }
+    }
   }
 }

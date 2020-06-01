@@ -93,6 +93,7 @@ public class TableMetadataParser {
   static final String PARTITION_SPEC = "partition-spec";
   static final String PARTITION_SPECS = "partition-specs";
   static final String DEFAULT_SPEC_ID = "default-spec-id";
+  static final String PRIMARY_KEY = "primary-key";
   static final String PROPERTIES = "properties";
   static final String CURRENT_SNAPSHOT_ID = "current-snapshot-id";
   static final String SNAPSHOTS = "snapshots";
@@ -177,6 +178,11 @@ public class TableMetadataParser {
       PartitionSpecParser.toJson(spec, generator);
     }
     generator.writeEndArray();
+
+    if (metadata.formatVersion() > 1) {
+      generator.writeFieldName(PRIMARY_KEY);
+      PrimaryKeyParser.toJson(metadata.primaryKey(), generator);
+    }
 
     generator.writeObjectFieldStart(PROPERTIES);
     for (Map.Entry<String, String> keyValue : metadata.properties().entrySet()) {
@@ -279,6 +285,13 @@ public class TableMetadataParser {
           schema, TableMetadata.INITIAL_SPEC_ID, node.get(PARTITION_SPEC)));
     }
 
+    PrimaryKey primaryKey;
+    if (formatVersion > 1 && node.has(PRIMARY_KEY)) {
+      primaryKey = PrimaryKeyParser.fromJson(schema, node.get(PRIMARY_KEY));
+    } else {
+      primaryKey = PrimaryKey.noPrimaryKey();
+    }
+
     Map<String, String> properties = JsonUtil.getStringMap(PROPERTIES, node);
     long currentVersionId = JsonUtil.getLong(CURRENT_SNAPSHOT_ID, node);
     long lastUpdatedMillis = JsonUtil.getLong(LAST_UPDATED_MILLIS, node);
@@ -305,19 +318,19 @@ public class TableMetadataParser {
     }
 
     SortedSet<MetadataLogEntry> metadataEntries =
-            Sets.newTreeSet(Comparator.comparingLong(MetadataLogEntry::timestampMillis));
+        Sets.newTreeSet(Comparator.comparingLong(MetadataLogEntry::timestampMillis));
     if (node.has(METADATA_LOG)) {
       Iterator<JsonNode> logIterator = node.get(METADATA_LOG).elements();
       while (logIterator.hasNext()) {
         JsonNode entryNode = logIterator.next();
         metadataEntries.add(new MetadataLogEntry(
-                JsonUtil.getLong(TIMESTAMP_MS, entryNode), JsonUtil.getString(METADATA_FILE, entryNode)));
+            JsonUtil.getLong(TIMESTAMP_MS, entryNode), JsonUtil.getString(METADATA_FILE, entryNode)));
       }
     }
 
     return new TableMetadata(file, formatVersion, uuid, location,
-        lastSequenceNumber, lastUpdatedMillis, lastAssignedColumnId, schema, defaultSpecId, specs, properties,
-        currentVersionId, snapshots, ImmutableList.copyOf(entries.iterator()),
+        lastSequenceNumber, lastUpdatedMillis, lastAssignedColumnId, schema, defaultSpecId, specs, primaryKey,
+        properties, currentVersionId, snapshots, ImmutableList.copyOf(entries.iterator()),
         ImmutableList.copyOf(metadataEntries.iterator()));
   }
 }

@@ -36,6 +36,8 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.flink.IcebergSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Factory for creating configured instances of {@link IcebergTableSink} or source.
@@ -43,6 +45,8 @@ import org.apache.iceberg.flink.IcebergSource;
 public class IcebergTableFactory implements
     StreamTableSourceFactory<Row>,
     StreamTableSinkFactory<Tuple2<Boolean, Row>> {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergTableFactory.class);
+
 
   @Override
   public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(Map<String, String> properties) {
@@ -53,7 +57,8 @@ public class IcebergTableFactory implements
         .isValue(StreamTableDescriptorValidator.UPDATE_MODE, StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND);
     String tableIdentifier = descProperties.getString(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
     TableSchema schema = descProperties.getTableSchema(Schema.SCHEMA);
-    return new IcebergTableSink(isAppendOnly, tableIdentifier, schema);
+    Configuration conf = IcebergValidator.getInstance().getConfiguration(descProperties);
+    return new IcebergTableSink(isAppendOnly, tableIdentifier, schema, conf);
   }
 
   @Override
@@ -63,8 +68,7 @@ public class IcebergTableFactory implements
     // Initialize the iceberg table source instance.
     String tableIdentifier = descProperties.getString(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
     TableSchema schema = descProperties.getTableSchema(Schema.SCHEMA);
-    // TODO consider to pass a configuration from user side.
-    Configuration conf = new Configuration();
+    Configuration conf = IcebergValidator.getInstance().getConfiguration(descProperties);
     // Get the optional config keys.
     long fromSnapshotId = descProperties.getOptionalLong(IcebergValidator.CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID)
         .orElse(IcebergSource.NON_CONSUMED_SNAPSHOT_ID);
@@ -92,6 +96,7 @@ public class IcebergTableFactory implements
 
     // Iceberg properties
     properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_IDENTIFIER);
+    properties.add(IcebergValidator.CONNECTOR_ICEBERG_CONFIGURATION_PATH);
     properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_FROM_SNAPSHOT_ID);
     properties.add(IcebergValidator.CONNECTOR_ICEBERG_TABLE_SNAP_POLLING_INTERVAL_MILLIS);
 

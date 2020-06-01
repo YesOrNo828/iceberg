@@ -70,6 +70,7 @@ class GenericDataFile
   private Map<Integer, ByteBuffer> upperBounds = null;
   private List<Long> splitOffsets = null;
   private byte[] keyMetadata = null;
+  private DataFileType dataFileType = DataFileType.DATA_BASE_FILE;
 
   // cached schema
   private transient org.apache.avro.Schema avroSchema = null;
@@ -134,7 +135,8 @@ class GenericDataFile
   }
 
   GenericDataFile(String filePath, FileFormat format, PartitionData partition,
-                  long fileSizeInBytes, Metrics metrics, List<Long> splitOffsets) {
+                  long fileSizeInBytes, Metrics metrics, List<Long> splitOffsets,
+                  DataFileType dataFileType) {
     this.filePath = filePath;
     this.format = format;
 
@@ -156,12 +158,13 @@ class GenericDataFile
     this.lowerBounds = SerializableByteBufferMap.wrap(metrics.lowerBounds());
     this.upperBounds = SerializableByteBufferMap.wrap(metrics.upperBounds());
     this.splitOffsets = copy(splitOffsets);
+    this.dataFileType = dataFileType;
   }
 
   GenericDataFile(String filePath, FileFormat format, PartitionData partition,
                   long fileSizeInBytes, Metrics metrics,
-                  ByteBuffer keyMetadata, List<Long> splitOffsets) {
-    this(filePath, format, partition, fileSizeInBytes, metrics, splitOffsets);
+                  ByteBuffer keyMetadata, List<Long> splitOffsets, DataFileType dataFileType) {
+    this(filePath, format, partition, fileSizeInBytes, metrics, splitOffsets, dataFileType);
     this.keyMetadata = ByteBuffers.toByteArray(keyMetadata);
   }
 
@@ -195,6 +198,7 @@ class GenericDataFile
     this.fromProjectionPos = toCopy.fromProjectionPos;
     this.keyMetadata = toCopy.keyMetadata == null ? null : Arrays.copyOf(toCopy.keyMetadata, toCopy.keyMetadata.length);
     this.splitOffsets = copy(toCopy.splitOffsets);
+    this.dataFileType = toCopy.dataFileType;
   }
 
   /**
@@ -276,6 +280,11 @@ class GenericDataFile
   }
 
   @Override
+  public DataFileType dataFileType() {
+    return dataFileType;
+  }
+
+  @Override
   public org.apache.avro.Schema getSchema() {
     if (avroSchema == null) {
       this.avroSchema = getAvroSchema(partitionType);
@@ -331,6 +340,9 @@ class GenericDataFile
       case 12:
         this.splitOffsets = (List<Long>) v;
         return;
+      case 13:
+        this.dataFileType = DataFileType.valueOf(v.toString());
+        return;
       default:
         // ignore the object, it must be from a newer version of the format
     }
@@ -377,6 +389,8 @@ class GenericDataFile
         return keyMetadata();
       case 12:
         return splitOffsets;
+      case 13:
+        return dataFileType != null ? dataFileType.toString() : DataFileType.DATA_BASE_FILE;
       default:
         throw new UnsupportedOperationException("Unknown field ordinal: " + pos);
     }
@@ -414,6 +428,7 @@ class GenericDataFile
         .add("upper_bounds", upperBounds)
         .add("key_metadata", keyMetadata == null ? "null" : "(redacted)")
         .add("split_offsets", splitOffsets == null ? "null" : splitOffsets)
+        .add("data_file_type", dataFileType)
         .toString();
   }
 

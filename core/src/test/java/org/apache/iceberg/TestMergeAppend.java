@@ -59,14 +59,16 @@ public class TestMergeAppend extends TableTestBase {
     Snapshot pending = table.newAppend()
         .appendFile(FILE_A)
         .appendFile(FILE_B)
+        .appendFile(DIFF_A)
         .apply();
 
     Assert.assertEquals("Should create 1 manifest for initial write",
-        1, pending.manifests().size());
+        2, pending.manifests().size());
 
     long pendingId = pending.snapshotId();
 
     validateManifest(pending.manifests().get(0), ids(pendingId, pendingId), files(FILE_A, FILE_B));
+    validateManifest(pending.manifests().get(1), ids(pendingId), files(DIFF_A));
   }
 
   @Test
@@ -208,6 +210,34 @@ public class TestMergeAppend extends TableTestBase {
     // validate that the metadata summary is correct when using appendManifest
     Assert.assertEquals("Summary metadata should include 3 added files",
         "3", readMetadata().currentSnapshot().summary().get("added-data-files"));
+  }
+
+  @Test
+  public void testManifestMergeDataDeleteIntoTwoDiffManifests() {
+    if (formatVersion <= 1) {
+      return;
+    }
+
+    Assert.assertEquals("Table should start empty", 0, listManifestFiles().size());
+    table.updateProperties().set(TableProperties.MANIFEST_MIN_MERGE_COUNT, "2").commit();
+
+    TableMetadata base = readMetadata();
+    Assert.assertNull("Should not have a current snapshot", base.currentSnapshot());
+
+    table.newAppend()
+        .appendFile(FILE_A)
+        .appendFile(FILE_B)
+        .appendFile(DIFF_A)
+        .commit();
+
+    // validate that the metadata summary is correct when using append files.
+    List<ManifestFile> manifestFiles = readMetadata().currentSnapshot().manifests();
+    long pendingId = readMetadata().currentSnapshot().snapshotId();
+    System.out.println("Manifest files: " + manifestFiles);
+
+    Assert.assertEquals("Should merged the data files but don't for diff files", 2, manifestFiles.size());
+    validateManifest(manifestFiles.get(0), ids(pendingId, pendingId), files(FILE_A, FILE_B));
+    validateManifest(manifestFiles.get(1), ids(pendingId), files(DIFF_A));
   }
 
   @Test

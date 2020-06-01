@@ -68,7 +68,8 @@ public class TestManifestWriterVersions {
   private static final List<Long> OFFSETS = ImmutableList.of(4L);
 
   private static final DataFile DATA_FILE = new GenericDataFile(
-      PATH, FORMAT, PARTITION, 150972L, METRICS, null, OFFSETS);
+      PATH, FORMAT, PARTITION, 150972L, METRICS, null, OFFSETS,
+      DataFile.DataFileType.DATA_BASE_FILE);
 
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
