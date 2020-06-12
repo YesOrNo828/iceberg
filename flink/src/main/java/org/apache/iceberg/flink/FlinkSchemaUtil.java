@@ -34,7 +34,7 @@ public class FlinkSchemaUtil {
   public static Schema convert(TableSchema flinkSchema) {
     FieldsDataType root = (FieldsDataType) flinkSchema.toRowDataType();
     Type converted = FlinkTypeVisitor.visit(root, new FlinkTypeToType(root));
-    return new Schema(converted.asNestedType().asStructType().fields());
+    return new Schema(converted.asStructType().fields());
   }
 
   static void validate(Schema readSchema, Schema writeSchema, boolean checkNullability, boolean checkOrdering) {

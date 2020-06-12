@@ -75,7 +75,7 @@ public class TestFlinkSchemaUtil {
         Types.NestedField.optional(12, "varbinary", Types.BinaryType.get()),
         Types.NestedField.optional(13, "binary", Types.BinaryType.get()),
         Types.NestedField.optional(14, "time", Types.TimeType.get()),
-        Types.NestedField.optional(15, "timestamp", Types.TimestampType.withZone()),
+        Types.NestedField.optional(15, "timestamp", Types.TimestampType.withoutZone()),
         Types.NestedField.optional(16, "date", Types.DateType.get()),
         Types.NestedField.optional(17, "decimal", Types.DecimalType.of(2, 2))
     );

@@ -19,45 +19,19 @@
 
 package org.apache.iceberg.flink.data;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.flink.types.Row;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
-import org.apache.iceberg.parquet.ParquetTypeVisitor;
 import org.apache.iceberg.parquet.ParquetValueWriter;
 import org.apache.iceberg.parquet.ParquetValueWriters;
-import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.Type;
 
 public class FlinkParquetWriters {
   private FlinkParquetWriters() {
   }
 
-  @SuppressWarnings("unchecked")
   public static <T> ParquetValueWriter<T> buildWriter(MessageType type) {
-    return (ParquetValueWriter<T>) ParquetTypeVisitor.visit(type, new WriteBuilder(type));
-  }
-
-  private static class WriteBuilder extends GenericParquetWriter.WriteBuilder {
-
-    WriteBuilder(MessageType type) {
-      super(type);
-    }
-
-    @Override
-    public ParquetValueWriter<?> struct(GroupType struct,
-                                        List<ParquetValueWriter<?>> fieldWriters) {
-      List<Type> fields = struct.getFields();
-      List<ParquetValueWriter<?>> writers = Lists.newArrayListWithExpectedSize(fieldWriters.size());
-      for (int i = 0; i < fields.size(); i += 1) {
-        Type fieldType = struct.getType(i);
-        int fieldD = getMessageType().getMaxDefinitionLevel(path(fieldType.getName()));
-        writers.add(ParquetValueWriters.option(fieldType, fieldD, fieldWriters.get(i)));
-      }
-
-      return new RowWriter(writers);
-    }
+    return GenericParquetWriter.buildWriter(type, RowWriter::new);
   }
 
   private static class RowWriter extends ParquetValueWriters.StructWriter<Row> {

@@ -37,6 +37,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -88,7 +89,7 @@ public class FlinkTypeToType extends FlinkTypeVisitor<Type> {
 
   @Override
   public Type collection(CollectionDataType collection, Type elementType) {
-    if (collection.getElementDataType().getLogicalType().isNullable()) {
+    if (collection.getLogicalType().isNullable()) {
       return Types.ListType.ofOptional(getNextId(), elementType);
     } else {
       return Types.ListType.ofRequired(getNextId(), elementType);
@@ -131,6 +132,8 @@ public class FlinkTypeToType extends FlinkTypeVisitor<Type> {
     } else if (inner instanceof TimeType) {
       return Types.TimeType.get();
     } else if (inner instanceof TimestampType) {
+      return Types.TimestampType.withoutZone();
+    } else if (inner instanceof LocalZonedTimestampType) {
       return Types.TimestampType.withZone();
     } else if (inner instanceof DecimalType) {
       DecimalType decimalType = (DecimalType) inner;
