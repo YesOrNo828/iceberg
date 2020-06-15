@@ -30,57 +30,61 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.encryption.EncryptedOutputFile;
 import org.apache.iceberg.io.FileAppender;
 
-public class UnpartitionedWriter<T> implements TaskWriter<T> {
+public class UnpartitionedAppender<T> implements TaskAppender<T> {
 
   private final FileAppenderFactory<T> factory;
   private final Supplier<EncryptedOutputFile> outputFileSupplier;
   private final long targetFileSize;
   private final FileFormat fileFormat;
   private final List<DataFile> completeDataFiles;
+  private final DataFile.DataFileType dataFileType;
 
   private EncryptedOutputFile currentOutputFile;
-  private FileAppender<T> currentWriter = null;
+  private FileAppender<T> currentAppender = null;
 
-  public UnpartitionedWriter(FileAppenderFactory<T> factory,
-                             Supplier<EncryptedOutputFile> outputFileSupplier,
-                             long targetFileSize,
-                             FileFormat fileFormat) {
+  UnpartitionedAppender(FileAppenderFactory<T> factory,
+                        Supplier<EncryptedOutputFile> outputFileSupplier,
+                        long targetFileSize,
+                        FileFormat fileFormat,
+                        DataFile.DataFileType dataFileType) {
     this.factory = factory;
     this.outputFileSupplier = outputFileSupplier;
     this.targetFileSize = targetFileSize;
     this.fileFormat = fileFormat;
     this.completeDataFiles = new ArrayList<>();
+    this.dataFileType = dataFileType;
   }
 
   @Override
-  public void write(T record) throws IOException {
-    if (currentWriter == null) {
+  public void append(T record) throws IOException {
+    if (currentAppender == null) {
       currentOutputFile = outputFileSupplier.get();
-      currentWriter = factory.newAppender(currentOutputFile.encryptingOutputFile(), fileFormat);
+      currentAppender = factory.newAppender(currentOutputFile.encryptingOutputFile(), fileFormat);
     }
-    currentWriter.add(record);
+    currentAppender.add(record);
 
     // Roll the writer if reach the target file size.
-    if (currentWriter.length() >= targetFileSize) {
+    if (currentAppender.length() >= targetFileSize) {
       closeCurrentWriter();
     }
   }
 
   private void closeCurrentWriter() throws IOException {
-    if (currentWriter != null) {
-      currentWriter.close();
+    if (currentAppender != null) {
+      currentAppender.close();
 
       // Construct the DataFile and add it into the completeDataFiles.
       DataFile dataFile = DataFiles.builder(PartitionSpec.unpartitioned())
           .withEncryptedOutputFile(currentOutputFile)
           .withPartition(null)
-          .withMetrics(currentWriter.metrics())
-          .withSplitOffsets(currentWriter.splitOffsets())
+          .withMetrics(currentAppender.metrics())
+          .withSplitOffsets(currentAppender.splitOffsets())
+          .withDataFileType(dataFileType)
           .build();
       completeDataFiles.add(dataFile);
 
       // Reset the current output file and writer to be null.
-      currentWriter = null;
+      currentAppender = null;
       currentOutputFile = null;
     }
   }
@@ -93,5 +97,10 @@ public class UnpartitionedWriter<T> implements TaskWriter<T> {
   @Override
   public List<DataFile> getCompleteFiles() {
     return this.completeDataFiles;
+  }
+
+  @Override
+  public void reset() {
+    this.completeDataFiles.clear();
   }
 }

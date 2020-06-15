@@ -237,7 +237,10 @@ public class TestMergeAppend extends TableTestBase {
 
     Assert.assertEquals("Should merged the data files but don't for diff files", 2, manifestFiles.size());
     validateManifest(manifestFiles.get(0), ids(pendingId, pendingId), files(FILE_A, FILE_B));
+    Assert.assertEquals(ManifestFile.ManifestType.DATA_FILES, manifestFiles.get(0).manifestType());
+
     validateManifest(manifestFiles.get(1), ids(pendingId), files(DIFF_A));
+    Assert.assertEquals(ManifestFile.ManifestType.DELETE_FILES, manifestFiles.get(1).manifestType());
   }
 
   @Test

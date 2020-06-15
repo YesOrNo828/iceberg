@@ -89,7 +89,7 @@ public class FlinkTypeToType extends FlinkTypeVisitor<Type> {
 
   @Override
   public Type collection(CollectionDataType collection, Type elementType) {
-    if (collection.getLogicalType().isNullable()) {
+    if (collection.getElementDataType().getLogicalType().isNullable()) {
       return Types.ListType.ofOptional(getNextId(), elementType);
     } else {
       return Types.ListType.ofRequired(getNextId(), elementType);
@@ -120,9 +120,11 @@ public class FlinkTypeToType extends FlinkTypeVisitor<Type> {
       return Types.IntegerType.get();
     } else if (inner instanceof BigIntType) {
       return Types.LongType.get();
-    } else if (inner instanceof VarBinaryType ||
-        inner instanceof BinaryType) {
+    } else if (inner instanceof VarBinaryType) {
       return Types.BinaryType.get();
+    } else if (inner instanceof BinaryType) {
+      int len = ((BinaryType) inner).getLength();
+      return Types.FixedType.ofLength(len);
     } else if (inner instanceof FloatType) {
       return Types.FloatType.get();
     } else if (inner instanceof DoubleType) {

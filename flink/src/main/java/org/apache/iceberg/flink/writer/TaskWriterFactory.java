@@ -20,6 +20,7 @@
 package org.apache.iceberg.flink.writer;
 
 import org.apache.flink.types.Row;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.flink.PartitionKey;
@@ -27,7 +28,6 @@ import org.apache.iceberg.flink.PartitionKey;
 public class TaskWriterFactory {
 
   private TaskWriterFactory() {
-
   }
 
   public static TaskWriter<Row> createTaskWriter(PartitionSpec spec,
@@ -35,19 +35,38 @@ public class TaskWriterFactory {
                                                  OutputFileFactory outputFileFactory,
                                                  long targetFileSizeBytes,
                                                  FileFormat fileFormat) {
+    final TaskAppender<Row> insertOnlyAppender;
+    final TaskAppender<Row> deleteOnlyAppender;
+
     if (spec.fields().isEmpty()) {
-      return new UnpartitionedWriter<>(fileAppenderFactory,
+      insertOnlyAppender = new UnpartitionedAppender<>(fileAppenderFactory,
           outputFileFactory::newOutputFile,
           targetFileSizeBytes,
-          fileFormat);
+          fileFormat,
+          DataFile.DataFileType.DATA_BASE_FILE);
+      deleteOnlyAppender = new UnpartitionedAppender<>(fileAppenderFactory,
+          outputFileFactory::newOutputFile,
+          targetFileSizeBytes,
+          fileFormat,
+          DataFile.DataFileType.DELETE_DIFF_FILE);
     } else {
       PartitionKey.Builder builder = new PartitionKey.Builder(spec);
-      return new PartitionFanoutWriter<>(spec,
+      insertOnlyAppender = new PartitionAppender<>(spec,
           fileAppenderFactory,
           outputFileFactory::newOutputFile,
           builder::build,
           targetFileSizeBytes,
-          fileFormat);
+          fileFormat,
+          DataFile.DataFileType.DATA_BASE_FILE);
+      deleteOnlyAppender = new PartitionAppender<>(spec,
+          fileAppenderFactory,
+          outputFileFactory::newOutputFile,
+          builder::build,
+          targetFileSizeBytes,
+          fileFormat,
+          DataFile.DataFileType.DELETE_DIFF_FILE);
     }
+
+    return new TaskWriterImpl<>(insertOnlyAppender, deleteOnlyAppender);
   }
 }

@@ -24,31 +24,17 @@ import java.util.List;
 import org.apache.iceberg.DataFile;
 
 /**
- * The writer interface which could accept both INSERT and DELETE record.
+ * For an Flink Streaming/Batch sink, it will have many tasks to write the records into data files. The TaskWriter is
+ * used to write records for a given task. It's possible to write many data files at the same time.
  *
- * @param <T> to indicate the record data type.
+ * @param <T> define the data type of the record to write.
  */
-public interface TaskWriter<T> {
+public interface TaskAppender<T> {
 
-  /**
-   * Insert the row by appending it into the insert data files.
-   */
-  void insert(T row) throws IOException;
+  void append(T record) throws IOException;
 
-  /**
-   * Delete this row by appending it into the delete differential files.
-   */
-  void delete(T row) throws IOException;
-
-  /**
-   * Close the writer.
-   */
   void close() throws IOException;
 
-  /**
-   * To get the full list of complete files, we should call this method after {@link TaskWriter#close()} because the
-   * close method will close all the opening data files and build {@link DataFile} to the return array list.
-   */
   List<DataFile> getCompleteFiles();
 
   /**

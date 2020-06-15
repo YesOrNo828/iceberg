@@ -44,7 +44,9 @@ import org.apache.iceberg.util.PropertyUtil;
  */
 public class TableMetadata {
   static final long INITIAL_SEQUENCE_NUMBER = 0;
-  static final int DEFAULT_TABLE_FORMAT_VERSION = 1;
+
+  /* Notice that the Apache Iceberg table format version is still v1. */
+  static final int DEFAULT_TABLE_FORMAT_VERSION = 2;
   static final int SUPPORTED_TABLE_FORMAT_VERSION = 2;
   static final int INITIAL_SPEC_ID = 0;
 
@@ -77,7 +79,7 @@ public class TableMetadata {
     return newTableMetadata(schema, spec, pk, location, properties, DEFAULT_TABLE_FORMAT_VERSION);
   }
 
-  static TableMetadata newTableMetadata(Schema schema,
+  public static TableMetadata newTableMetadata(Schema schema,
                                         PartitionSpec spec,
                                         PrimaryKey pk,
                                         String location,

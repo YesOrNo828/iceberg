@@ -77,7 +77,7 @@ public class IcebergTableSink implements UpsertStreamTableSink<Row> {
       String expectedFieldNames = Arrays.toString(tableSchema.getFieldNames());
       String actualFieldNames = Arrays.toString(fieldNames);
       throw new ValidationException("The field names is mismatched. Expected: " +
-          expectedFieldNames + "But was: " + actualFieldNames);
+          expectedFieldNames + " But was: " + actualFieldNames);
     }
     if (!Arrays.equals(tableSchema.getFieldTypes(), fieldTypes)) {
       String expectedFieldTypes = Arrays.toString(tableSchema.getFieldTypes());
