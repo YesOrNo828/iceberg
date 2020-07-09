@@ -298,6 +298,7 @@ class GenericDataFile
     int pos = i;
     // if the schema was projected, map the incoming ordinal to the expected one
     if (fromProjectionPos != null) {
+
       pos = fromProjectionPos[i];
     }
     switch (pos) {
@@ -358,6 +359,9 @@ class GenericDataFile
     int pos = i;
     // if the schema was projected, map the incoming ordinal to the expected one
     if (fromProjectionPos != null) {
+      int size = fromProjectionPos.length;
+      if(i >= size)
+        return null;
       pos = fromProjectionPos[i];
     }
     switch (pos) {
