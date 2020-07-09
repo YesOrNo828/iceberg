@@ -27,6 +27,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Date;
 
 public class TestPartitionKey {
 
@@ -50,5 +53,24 @@ public class TestPartitionKey {
     PartitionKey pk = builder.build(row);
     String actual = spec.partitionToPath(pk);
     Assert.assertEquals("should be the same", "ts_hour=2020-06-01-11/level=info/sequence_number=100", actual);
+  }
+
+  @Test
+  public void testLDT() {
+    LocalDateTime localDateTime = LocalDateTime.of(2020, 6, 1, 11, 0);
+    Long micros =
+        localDateTime
+            .toInstant(ZoneOffset.systemDefault().getRules().getOffset(LocalDateTime.now()))
+//                  .toInstant(ZoneOffset.UTC)
+            .toEpochMilli() * 1000;
+    System.out.println(micros);
+    System.out.println(new Date(micros / 1000));
+    Long milli =
+        localDateTime
+//            .toInstant(ZoneOffset.systemDefault().getRules().getOffset(LocalDateTime.now()))
+                  .toInstant(ZoneOffset.UTC)
+            .toEpochMilli();
+    System.out.println(milli);
+    System.out.println(new Date(milli));
   }
 }

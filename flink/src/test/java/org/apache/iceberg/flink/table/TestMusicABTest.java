@@ -115,4 +115,30 @@ public class TestMusicABTest {
       Assert.assertNotNull(table);
     }
   }
+
+  @Test
+  public void createPartitionTableHZ() throws IOException {
+    String tableLocation = "hdfs://sloth-hz-20/user/sloth/iceberg/music_user_action_abtest_partition";
+    PartitionSpec spec = PartitionSpec
+        .builderFor(SCHEMA)
+        .hour("flink_process_time")
+        .build();
+    String hdfsLocation = "/Users/yexianxun/IdeaProjects/sloth/sloth/sloth-conf/src/main/resources/dist/yarn_conf/conf_sloth20/hdfs-site.xml";
+    String coreLocation = "/Users/yexianxun/IdeaProjects/sloth/sloth/sloth-conf/src/main/resources/dist/yarn_conf/conf_sloth20/core-site.xml";
+
+    System.setProperty("HADOOP_USER_NAME", "sloth");
+
+    Configuration conf = new Configuration(false);
+    conf.addResource(new Path(hdfsLocation));
+    conf.addResource(new Path(coreLocation));
+    HadoopTables hadoopTables = new HadoopTables(conf);
+    try {
+      conf.setBoolean(KerberosLoginUtil.KERBEROS_ENABLED, false);
+      Table table = hadoopTables.load(tableLocation);
+      Assert.assertNotNull(table);
+    } catch (NoSuchTableException e) {
+      Table table = hadoopTables.create(SCHEMA, spec, tableLocation);
+      Assert.assertNotNull(table);
+    }
+  }
 }
