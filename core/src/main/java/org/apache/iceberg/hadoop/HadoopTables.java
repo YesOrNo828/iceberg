@@ -36,6 +36,7 @@ import org.apache.iceberg.ManifestsTable;
 import org.apache.iceberg.MetadataTableType;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionsTable;
+import org.apache.iceberg.PrimaryKey;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SnapshotsTable;
 import org.apache.iceberg.Table;
@@ -134,7 +135,8 @@ public class HadoopTables implements Tables, Configurable {
    * @return newly created table implementation
    */
   @Override
-  public Table create(Schema schema, PartitionSpec spec, Map<String, String> properties,
+  public Table create(Schema schema, PartitionSpec spec, PrimaryKey pk,
+                      Map<String, String> properties,
                       String location) {
     Preconditions.checkNotNull(schema, "A table schema is required");
 
@@ -145,7 +147,7 @@ public class HadoopTables implements Tables, Configurable {
 
     Map<String, String> tableProps = properties == null ? ImmutableMap.of() : properties;
     PartitionSpec partitionSpec = spec == null ? PartitionSpec.unpartitioned() : spec;
-    TableMetadata metadata = TableMetadata.newTableMetadata(schema, partitionSpec, location, tableProps);
+    TableMetadata metadata = TableMetadata.newTableMetadata(schema, partitionSpec, pk, location, tableProps);
     ops.commit(null, metadata);
 
     return new BaseTable(ops, location);

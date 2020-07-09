@@ -56,7 +56,7 @@ public class TestScanDataFileColumns {
     Assert.assertTrue(location.delete());
     this.tableLocation = location.toString();
     this.table = TABLES.create(
-        SCHEMA, PartitionSpec.unpartitioned(),
+        SCHEMA, PartitionSpec.unpartitioned(), PrimaryKey.noPrimaryKey(),
         ImmutableMap.of(TableProperties.DEFAULT_FILE_FORMAT, FileFormat.PARQUET.name()),
         tableLocation);
 

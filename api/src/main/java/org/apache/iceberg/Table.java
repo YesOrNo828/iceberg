@@ -66,6 +66,13 @@ public interface  Table {
   Map<Integer, PartitionSpec> specs();
 
   /**
+   * Return the {@link PrimaryKey specs} for this table.
+   *
+   * @return this table's primary key spec.
+   */
+  PrimaryKey primaryKey();
+
+  /**
    * Return a map of string properties for this table.
    *
    * @return this table's properties map

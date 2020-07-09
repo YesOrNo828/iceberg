@@ -19,6 +19,7 @@
 
 package org.apache.iceberg.flink.writer;
 
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,9 +43,9 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> defines the data type of record to write.
  */
-public class PartitionFanoutWriter<T> implements TaskWriter<T> {
+public class PartitionAppender<T> implements TaskAppender<T> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(PartitionFanoutWriter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PartitionAppender.class);
 
   private final PartitionSpec spec;
   private final FileAppenderFactory<T> factory;
@@ -54,13 +55,15 @@ public class PartitionFanoutWriter<T> implements TaskWriter<T> {
   private final long targetFileSize;
   private final FileFormat fileFormat;
   private final List<DataFile> completeDataFiles;
+  private final DataFile.DataFileType dataFileType;
 
-  public PartitionFanoutWriter(PartitionSpec spec,
-                               FileAppenderFactory<T> factory,
-                               Function<PartitionKey, EncryptedOutputFile> outputFileGetter,
-                               Function<T, PartitionKey> keyGetter,
-                               long targetFileSize,
-                               FileFormat fileFormat) {
+  PartitionAppender(PartitionSpec spec,
+                    FileAppenderFactory<T> factory,
+                    Function<PartitionKey, EncryptedOutputFile> outputFileGetter,
+                    Function<T, PartitionKey> keyGetter,
+                    long targetFileSize,
+                    FileFormat fileFormat,
+                    DataFile.DataFileType dataFileType) {
     this.spec = spec;
     this.factory = factory;
     this.outputFileGetter = outputFileGetter;
@@ -69,10 +72,11 @@ public class PartitionFanoutWriter<T> implements TaskWriter<T> {
     this.targetFileSize = targetFileSize;
     this.fileFormat = fileFormat;
     this.completeDataFiles = new ArrayList<>();
+    this.dataFileType = dataFileType;
   }
 
   @Override
-  public void write(T record) throws IOException {
+  public void append(T record) throws IOException {
     PartitionKey partitionKey = keyGetter.apply(record);
     Preconditions.checkArgument(partitionKey != null, "Partition key shouldn't be null");
 
@@ -86,8 +90,7 @@ public class PartitionFanoutWriter<T> implements TaskWriter<T> {
     // Roll the writer if reach the target file size.
     if (writer.fileAppender.length() >= targetFileSize) {
       closeFileAppender(writer);
-      // Open a new file appender and put it into the writers map.
-      writers.put(partitionKey, createWrappedFileAppender(partitionKey));
+      writers.remove(partitionKey);
     }
   }
 
@@ -104,7 +107,12 @@ public class PartitionFanoutWriter<T> implements TaskWriter<T> {
 
   @Override
   public List<DataFile> getCompleteFiles() {
-    return this.completeDataFiles;
+    return ImmutableList.copyOf(this.completeDataFiles);
+  }
+
+  @Override
+  public void reset() {
+    this.completeDataFiles.clear();
   }
 
   private WrappedFileAppender<T> createWrappedFileAppender(PartitionKey partitionKey) {
@@ -122,6 +130,7 @@ public class PartitionFanoutWriter<T> implements TaskWriter<T> {
         .withPartition(spec.fields().size() == 0 ? null : wrap.partitionKey)
         .withMetrics(wrap.fileAppender.metrics())
         .withSplitOffsets(wrap.fileAppender.splitOffsets())
+        .withDataFileType(dataFileType)
         .build();
     completeDataFiles.add(dataFile);
   }

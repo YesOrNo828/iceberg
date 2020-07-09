@@ -39,11 +39,13 @@ public class IcebergTableSink implements UpsertStreamTableSink<Row> {
   private final boolean isAppendOnly;
   private final String tableIdentifier;
   private final TableSchema tableSchema;
+  private final Configuration conf;
 
-  public IcebergTableSink(boolean isAppendOnly, String tableIdentifier, TableSchema tableSchema) {
+  public IcebergTableSink(boolean isAppendOnly, String tableIdentifier, TableSchema tableSchema, Configuration conf) {
     this.isAppendOnly = isAppendOnly;
     this.tableIdentifier = tableIdentifier;
     this.tableSchema = tableSchema;
+    this.conf = conf;
   }
 
   @Override
@@ -53,7 +55,6 @@ public class IcebergTableSink implements UpsertStreamTableSink<Row> {
 
   @Override
   public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
-    Configuration conf = new Configuration();
     IcebergSinkFunction sinkFunction = IcebergSinkFunction.builder()
         .withConfiguration(conf)
         .withTableLocation(tableIdentifier)
@@ -76,7 +77,7 @@ public class IcebergTableSink implements UpsertStreamTableSink<Row> {
       String expectedFieldNames = Arrays.toString(tableSchema.getFieldNames());
       String actualFieldNames = Arrays.toString(fieldNames);
       throw new ValidationException("The field names is mismatched. Expected: " +
-          expectedFieldNames + "But was: " + actualFieldNames);
+          expectedFieldNames + " But was: " + actualFieldNames);
     }
     if (!Arrays.equals(tableSchema.getFieldTypes(), fieldTypes)) {
       String expectedFieldTypes = Arrays.toString(tableSchema.getFieldTypes());

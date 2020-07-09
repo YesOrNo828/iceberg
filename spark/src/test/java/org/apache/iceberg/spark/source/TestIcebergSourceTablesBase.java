@@ -126,7 +126,7 @@ public abstract class TestIcebergSourceTablesBase {
       // each row must inherit snapshot_id and sequence_number
       rows.forEach(row -> {
         row.put(1, snapshot.snapshotId());
-        row.put(2, 0L);
+        row.put(2, 1L);
         expected.add(row);
       });
     }
@@ -324,9 +324,9 @@ public abstract class TestIcebergSourceTablesBase {
       long snapshotId = table.currentSnapshot().snapshotId();
 
       Assert.assertEquals("Entries table should have 2 rows", 2, actual.size());
-      Assert.assertEquals("Sequence number must match", 0, actual.get(0).getLong(0));
+      Assert.assertEquals("Sequence number must match", 1, actual.get(0).getLong(0));
       Assert.assertEquals("Snapshot id must match", snapshotId, actual.get(0).getLong(1));
-      Assert.assertEquals("Sequence number must match", 0, actual.get(1).getLong(0));
+      Assert.assertEquals("Sequence number must match", 1, actual.get(1).getLong(0));
       Assert.assertEquals("Snapshot id must match", snapshotId, actual.get(1).getLong(1));
     } finally {
       spark.sql("DROP TABLE parquet_table");

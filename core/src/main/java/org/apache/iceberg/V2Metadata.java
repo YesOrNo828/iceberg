@@ -56,7 +56,7 @@ class V2Metadata {
       REQUIRED_SEQUENCE_NUMBER, REQUIRED_MIN_SEQUENCE_NUMBER, REQUIRED_SNAPSHOT_ID,
       REQUIRED_ADDED_FILES_COUNT, REQUIRED_EXISTING_FILES_COUNT, REQUIRED_DELETED_FILES_COUNT,
       REQUIRED_ADDED_ROWS_COUNT, REQUIRED_EXISTING_ROWS_COUNT, REQUIRED_DELETED_ROWS_COUNT,
-      ManifestFile.PARTITION_SUMMARIES);
+      ManifestFile.PARTITION_SUMMARIES, ManifestFile.MANIFEST_TYPE);
 
 
   /**
@@ -139,6 +139,8 @@ class V2Metadata {
           return wrapped.deletedRowsCount();
         case 12:
           return wrapped.partitions();
+        case 13:
+          return wrapped.manifestType().toString();
         default:
           throw new UnsupportedOperationException("Unknown field ordinal: " + pos);
       }
@@ -172,6 +174,11 @@ class V2Metadata {
     @Override
     public Long snapshotId() {
       return wrapped.snapshotId();
+    }
+
+    @Override
+    public ManifestType manifestType() {
+      return wrapped.manifestType();
     }
 
     @Override

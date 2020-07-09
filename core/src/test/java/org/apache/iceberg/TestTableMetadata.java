@@ -72,6 +72,8 @@ public class TestTableMetadata {
 
   private static final PartitionSpec SPEC_5 = PartitionSpec.builderFor(TEST_SCHEMA).withSpecId(5).build();
 
+  private static final PrimaryKey PK = PrimaryKey.builderFor(TEST_SCHEMA).identity("x").identity("z").build();
+
   @Rule
   public TemporaryFolder temp = new TemporaryFolder();
 
@@ -94,7 +96,7 @@ public class TestTableMetadata {
         .build();
 
     TableMetadata expected = new TableMetadata(null, 2, UUID.randomUUID().toString(), TEST_LOCATION,
-        SEQ_NO, System.currentTimeMillis(), 3, TEST_SCHEMA, 5, ImmutableList.of(SPEC_5),
+        SEQ_NO, System.currentTimeMillis(), 3, TEST_SCHEMA, 5, ImmutableList.of(SPEC_5), PK,
         ImmutableMap.of("property", "value"), currentSnapshotId,
         Arrays.asList(previousSnapshot, currentSnapshot), snapshotLog, ImmutableList.of());
 
@@ -120,6 +122,7 @@ public class TestTableMetadata {
         expected.defaultSpecId(), metadata.defaultSpecId());
     Assert.assertEquals("PartitionSpec map should match",
         expected.specs(), metadata.specs());
+    Assert.assertEquals("Primary key should match", expected.primaryKey(), metadata.primaryKey());
     Assert.assertEquals("Properties should match",
         expected.properties(), metadata.properties());
     Assert.assertEquals("Snapshot logs should match",
@@ -152,7 +155,7 @@ public class TestTableMetadata {
 
     TableMetadata expected = new TableMetadata(null, 1, UUID.randomUUID().toString(), TEST_LOCATION,
         0, System.currentTimeMillis(), 3, TEST_SCHEMA, 5, ImmutableList.of(SPEC_5),
-        ImmutableMap.of("property", "value"), currentSnapshotId,
+        PK, ImmutableMap.of("property", "value"), currentSnapshotId,
         Arrays.asList(previousSnapshot, currentSnapshot), reversedSnapshotLog, ImmutableList.of());
 
     // add the entries after creating TableMetadata to avoid the sorted check
@@ -189,7 +192,7 @@ public class TestTableMetadata {
 
     TableMetadata expected = new TableMetadata(null, 1, null, TEST_LOCATION,
         0, System.currentTimeMillis(), 3, TEST_SCHEMA, 6, ImmutableList.of(spec),
-        ImmutableMap.of("property", "value"), currentSnapshotId,
+        PK, ImmutableMap.of("property", "value"), currentSnapshotId,
         Arrays.asList(previousSnapshot, currentSnapshot), ImmutableList.of(), ImmutableList.of());
 
     String asJson = toJsonWithoutSpecList(expected);
@@ -217,6 +220,7 @@ public class TestTableMetadata {
         metadata.specs().get(0).compatibleWith(spec));
     Assert.assertEquals("PartitionSpec should have ID TableMetadata.INITIAL_SPEC_ID",
         TableMetadata.INITIAL_SPEC_ID, metadata.specs().get(0).specId());
+    Assert.assertEquals("Primary key should not be assigned", PrimaryKey.noPrimaryKey(), metadata.primaryKey());
     Assert.assertEquals("Properties should match",
         expected.properties(), metadata.properties());
     Assert.assertEquals("Snapshot logs should match",
@@ -299,7 +303,7 @@ public class TestTableMetadata {
 
     TableMetadata base = new TableMetadata(null, 1, UUID.randomUUID().toString(), TEST_LOCATION,
         0, System.currentTimeMillis(), 3, TEST_SCHEMA, 5, ImmutableList.of(SPEC_5),
-        ImmutableMap.of("property", "value"), currentSnapshotId,
+        PK, ImmutableMap.of("property", "value"), currentSnapshotId,
         Arrays.asList(previousSnapshot, currentSnapshot), reversedSnapshotLog,
         ImmutableList.copyOf(previousMetadataLog));
 
@@ -334,7 +338,7 @@ public class TestTableMetadata {
 
     TableMetadata base = new TableMetadata(localInput(latestPreviousMetadata.file()), 1, UUID.randomUUID().toString(),
         TEST_LOCATION, 0, currentTimestamp - 80, 3, TEST_SCHEMA, 5, ImmutableList.of(SPEC_5),
-        ImmutableMap.of("property", "value"), currentSnapshotId,
+        PK, ImmutableMap.of("property", "value"), currentSnapshotId,
         Arrays.asList(previousSnapshot, currentSnapshot), reversedSnapshotLog,
         ImmutableList.copyOf(previousMetadataLog));
 
@@ -379,7 +383,7 @@ public class TestTableMetadata {
 
     TableMetadata base = new TableMetadata(localInput(latestPreviousMetadata.file()), 1, UUID.randomUUID().toString(),
         TEST_LOCATION, 0, currentTimestamp - 50, 3, TEST_SCHEMA, 5,
-        ImmutableList.of(SPEC_5), ImmutableMap.of("property", "value"), currentSnapshotId,
+        ImmutableList.of(SPEC_5), PK, ImmutableMap.of("property", "value"), currentSnapshotId,
         Arrays.asList(previousSnapshot, currentSnapshot), reversedSnapshotLog,
         ImmutableList.copyOf(previousMetadataLog));
 
@@ -429,7 +433,7 @@ public class TestTableMetadata {
 
     TableMetadata base = new TableMetadata(localInput(latestPreviousMetadata.file()), 1, UUID.randomUUID().toString(),
         TEST_LOCATION, 0, currentTimestamp - 50, 3, TEST_SCHEMA, 2,
-        ImmutableList.of(SPEC_5), ImmutableMap.of("property", "value"), currentSnapshotId,
+        ImmutableList.of(SPEC_5), PK, ImmutableMap.of("property", "value"), currentSnapshotId,
         Arrays.asList(previousSnapshot, currentSnapshot), reversedSnapshotLog,
         ImmutableList.copyOf(previousMetadataLog));
 
@@ -454,7 +458,7 @@ public class TestTableMetadata {
     AssertHelpers.assertThrows("Should reject v2 metadata without a UUID",
         IllegalArgumentException.class, "UUID is required in format v2",
         () -> new TableMetadata(null, 2, null, TEST_LOCATION, SEQ_NO, System.currentTimeMillis(),
-            LAST_ASSIGNED_COLUMN_ID, TEST_SCHEMA, SPEC_5.specId(), ImmutableList.of(SPEC_5), ImmutableMap.of(), -1L,
+            LAST_ASSIGNED_COLUMN_ID, TEST_SCHEMA, SPEC_5.specId(), ImmutableList.of(SPEC_5), PK, ImmutableMap.of(), -1L,
             ImmutableList.of(), ImmutableList.of(), ImmutableList.of())
     );
   }
@@ -466,21 +470,21 @@ public class TestTableMetadata {
         IllegalArgumentException.class, "Unsupported format version: v" + unsupportedVersion,
         () -> new TableMetadata(null, unsupportedVersion, null, TEST_LOCATION, SEQ_NO,
             System.currentTimeMillis(), LAST_ASSIGNED_COLUMN_ID, TEST_SCHEMA, SPEC_5.specId(), ImmutableList.of(SPEC_5),
-            ImmutableMap.of(), -1L, ImmutableList.of(), ImmutableList.of(), ImmutableList.of())
+            PK, ImmutableMap.of(), -1L, ImmutableList.of(), ImmutableList.of(), ImmutableList.of())
     );
   }
 
   @Test
   public void testParserVersionValidation() throws Exception {
     String supportedVersion = toJsonWithVersion(
-        TableMetadata.newTableMetadata(TEST_SCHEMA, SPEC_5, TEST_LOCATION, ImmutableMap.of()),
+        TableMetadata.newTableMetadata(TEST_SCHEMA, SPEC_5, PK, TEST_LOCATION, ImmutableMap.of()),
         TableMetadata.SUPPORTED_TABLE_FORMAT_VERSION);
     TableMetadata parsed = TableMetadataParser.fromJson(
         ops.io(), null, JsonUtil.mapper().readValue(supportedVersion, JsonNode.class));
     Assert.assertNotNull("Should successfully read supported metadata version", parsed);
 
     String unsupportedVersion = toJsonWithVersion(
-        TableMetadata.newTableMetadata(TEST_SCHEMA, SPEC_5, TEST_LOCATION, ImmutableMap.of()),
+        TableMetadata.newTableMetadata(TEST_SCHEMA, SPEC_5, PK, TEST_LOCATION, ImmutableMap.of()),
         TableMetadata.SUPPORTED_TABLE_FORMAT_VERSION + 1);
     AssertHelpers.assertThrows("Should not read unsupported metadata",
         IllegalArgumentException.class, "Cannot read unsupported version",
@@ -570,7 +574,8 @@ public class TestTableMetadata {
         .add(1, 1005, "x_partition", "bucket[4]")
         .build();
     String location = "file://tmp/db/table";
-    TableMetadata metadata = TableMetadata.newTableMetadata(schema, spec, location, ImmutableMap.of());
+    TableMetadata metadata = TableMetadata.newTableMetadata(schema, spec, PrimaryKey.noPrimaryKey(),
+        location, ImmutableMap.of(), 1);
 
     AssertHelpers.assertThrows("Should fail to update an invalid partition spec",
         ValidationException.class, "Spec does not use sequential IDs that are required in v1",

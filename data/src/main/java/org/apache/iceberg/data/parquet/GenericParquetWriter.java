@@ -49,16 +49,22 @@ public class GenericParquetWriter {
   private GenericParquetWriter() {
   }
 
-  @SuppressWarnings("unchecked")
   public static <T> ParquetValueWriter<T> buildWriter(MessageType type) {
-    return (ParquetValueWriter<T>) ParquetTypeVisitor.visit(type, new WriteBuilder(type));
+    return buildWriter(type, RecordWriter::new);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> ParquetValueWriter<T> buildWriter(MessageType type, StructWriterFactory structWriterFactory) {
+    return (ParquetValueWriter<T>) ParquetTypeVisitor.visit(type, new WriteBuilder(type, structWriterFactory));
   }
 
   public static class WriteBuilder extends ParquetTypeVisitor<ParquetValueWriter<?>> {
     private final MessageType type;
+    private final StructWriterFactory<?> structWriterFactory;
 
-    public WriteBuilder(MessageType type) {
+    public WriteBuilder(MessageType type, StructWriterFactory<?> structWriterFactory) {
       this.type = type;
+      this.structWriterFactory = structWriterFactory;
     }
 
     protected MessageType getMessageType() {
@@ -82,7 +88,7 @@ public class GenericParquetWriter {
         writers.add(ParquetValueWriters.option(fieldType, fieldD, fieldWriters.get(i)));
       }
 
-      return new RecordWriter(writers);
+      return structWriterFactory.create(writers);
     }
 
     @Override
@@ -297,5 +303,9 @@ public class GenericParquetWriter {
     protected Object get(Record struct, int index) {
       return struct.get(index);
     }
+  }
+
+  public interface StructWriterFactory<T> {
+    StructWriter<T> create(List<ParquetValueWriter<?>> writers);
   }
 }

@@ -17,32 +17,28 @@
  * under the License.
  */
 
-package org.apache.iceberg.flink.data;
+package org.apache.iceberg.flink.writer;
 
+import java.io.IOException;
 import java.util.List;
-import org.apache.flink.types.Row;
-import org.apache.iceberg.data.parquet.GenericParquetWriter;
-import org.apache.iceberg.parquet.ParquetValueWriter;
-import org.apache.iceberg.parquet.ParquetValueWriters;
-import org.apache.parquet.schema.MessageType;
+import org.apache.iceberg.DataFile;
 
-public class FlinkParquetWriters {
-  private FlinkParquetWriters() {
-  }
+/**
+ * For an Flink Streaming/Batch sink, it will have many tasks to write the records into data files. The TaskWriter is
+ * used to write records for a given task. It's possible to write many data files at the same time.
+ *
+ * @param <T> define the data type of the record to write.
+ */
+public interface TaskAppender<T> {
 
-  public static <T> ParquetValueWriter<T> buildWriter(MessageType type) {
-    return GenericParquetWriter.buildWriter(type, RowWriter::new);
-  }
+  void append(T record) throws IOException;
 
-  private static class RowWriter extends ParquetValueWriters.StructWriter<Row> {
+  void close() throws IOException;
 
-    private RowWriter(List<ParquetValueWriter<?>> writers) {
-      super(writers);
-    }
+  List<DataFile> getCompleteFiles();
 
-    @Override
-    protected Object get(Row row, int index) {
-      return row.getField(index);
-    }
-  }
+  /**
+   * Reset to clear all the cached complete files.
+   */
+  void reset();
 }

@@ -76,6 +76,13 @@ public class TableTestBase {
       .withPartitionPath("data_bucket=3") // easy way to set partition data for now
       .withRecordCount(1)
       .build();
+  static final DataFile DIFF_A = DataFiles.builder(SPEC)
+      .withPath("/path/to/diff-a.parquet")
+      .withFileSizeInBytes(0)
+      .withPartitionPath("data_bucket=0")
+      .withRecordCount(1)
+      .withDataFileType(DataFile.DataFileType.DELETE_DIFF_FILE)
+      .build();
 
   static final FileIO FILE_IO = new TestTables.LocalFileIO();
 
@@ -209,6 +216,10 @@ public class TableTestBase {
   }
 
   void validateSnapshot(Snapshot old, Snapshot snap, DataFile... newFiles) {
+    validateSnapshot(old, snap, 1, newFiles);
+  }
+
+  void validateSnapshot(Snapshot old, Snapshot snap, int expectedManifestCount, DataFile... newFiles) {
     List<ManifestFile> oldManifests = old != null ? old.manifests() : ImmutableList.of();
 
     // copy the manifests to a modifiable list and remove the existing manifests
@@ -219,19 +230,21 @@ public class TableTestBase {
     }
 
     Assert.assertEquals("Should create 1 new manifest and reuse old manifests",
-        1, newManifests.size());
-    ManifestFile manifest = newManifests.get(0);
+        expectedManifestCount, newManifests.size());
 
     long id = snap.snapshotId();
-    Iterator<String> newPaths = paths(newFiles).iterator();
+    Iterator<DataFile> dataFileIt = Lists.newArrayList(newFiles).iterator();
 
-    for (ManifestEntry entry : ManifestFiles.read(manifest, FILE_IO).entries()) {
-      DataFile file = entry.file();
-      Assert.assertEquals("Path should match expected", newPaths.next(), file.path().toString());
-      Assert.assertEquals("File's snapshot ID should match", id, (long) entry.snapshotId());
+    for (ManifestFile manifest : newManifests) {
+      for (ManifestEntry entry : ManifestFiles.read(manifest, FILE_IO).entries()) {
+        DataFile actualFile = entry.file();
+        DataFile expectedFile = dataFileIt.next();
+        Assert.assertEquals("Path should match expected", expectedFile.path().toString(), actualFile.path().toString());
+        Assert.assertEquals("File's snapshot ID should match", id, (long) entry.snapshotId());
+        Assert.assertEquals("DataFileType should match", expectedFile.dataFileType(), actualFile.dataFileType());
+      }
     }
-
-    Assert.assertFalse("Should find all files in the manifest", newPaths.hasNext());
+    Assert.assertFalse("Should find all files in the manifest", dataFileIt.hasNext());
   }
 
   void validateTableFiles(Table tbl, DataFile... expectedFiles) {

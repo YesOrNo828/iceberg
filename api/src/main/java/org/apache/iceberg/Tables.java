@@ -30,15 +30,20 @@ import java.util.Map;
  */
 public interface Tables {
   default Table create(Schema schema, String tableIdentifier) {
-    return create(schema, PartitionSpec.unpartitioned(), ImmutableMap.of(), tableIdentifier);
+    return create(schema, PartitionSpec.unpartitioned(), PrimaryKey.noPrimaryKey(), ImmutableMap.of(), tableIdentifier);
   }
 
   default Table create(Schema schema, PartitionSpec spec, String tableIdentifier) {
-    return create(schema, spec, ImmutableMap.of(), tableIdentifier);
+    return create(schema, spec, PrimaryKey.noPrimaryKey(), ImmutableMap.of(), tableIdentifier);
+  }
+
+  default Table create(Schema schema, PartitionSpec spec, Map<String, String> properties, String tableIdentifier) {
+    return create(schema, spec, PrimaryKey.noPrimaryKey(), properties, tableIdentifier);
   }
 
   Table create(Schema schema,
                PartitionSpec spec,
+               PrimaryKey pk,
                Map<String, String> properties,
                String tableIdentifier);
 

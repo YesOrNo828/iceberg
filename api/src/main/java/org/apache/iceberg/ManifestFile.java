@@ -49,14 +49,15 @@ public interface ManifestFile {
   Types.NestedField DELETED_ROWS_COUNT = optional(514, "deleted_rows_count", Types.LongType.get());
   Types.NestedField SEQUENCE_NUMBER = optional(515, "sequence_number", Types.LongType.get());
   Types.NestedField MIN_SEQUENCE_NUMBER = optional(516, "min_sequence_number", Types.LongType.get());
-  // next ID to assign: 517
+  Types.NestedField MANIFEST_TYPE = optional(517, "manifest_type", Types.StringType.get());
+  // next ID to assign: 518
 
   Schema SCHEMA = new Schema(
       PATH, LENGTH, SPEC_ID,
       SEQUENCE_NUMBER, MIN_SEQUENCE_NUMBER, SNAPSHOT_ID,
       ADDED_FILES_COUNT, EXISTING_FILES_COUNT, DELETED_FILES_COUNT,
       ADDED_ROWS_COUNT, EXISTING_ROWS_COUNT, DELETED_ROWS_COUNT,
-      PARTITION_SUMMARIES);
+      PARTITION_SUMMARIES, MANIFEST_TYPE);
 
   static Schema schema() {
     return SCHEMA;
@@ -86,6 +87,14 @@ public interface ManifestFile {
    * @return the lowest sequence number of any data file in the manifest
    */
   long minSequenceNumber();
+
+  /**
+   * @return the manifest type of this manifest, which could be DATA_FILES or DELETE_FILES. The DATA_FILES means
+   * all files inside the manifest are data based files, the DELETE_FILES means all files are delete files.
+   */
+  default ManifestType manifestType() {
+    return ManifestType.DATA_FILES;
+  }
 
   /**
    * @return ID of the snapshot that added the manifest file to table metadata
@@ -199,5 +208,12 @@ public interface ManifestFile {
      * @return a copy of this partition field summary
      */
     PartitionFieldSummary copy();
+  }
+
+  /**
+   * The type indicate that the manifest is all data file entries or delete data entries.
+   */
+  enum ManifestType {
+    DATA_FILES, DELETE_FILES,
   }
 }

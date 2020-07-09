@@ -114,11 +114,12 @@ public class DataFiles {
   }
 
   public static DataFile fromStat(FileStatus stat, PartitionData partition, Metrics metrics,
-      EncryptionKeyMetadata keyMetadata, List<Long> splitOffsets) {
+                                  EncryptionKeyMetadata keyMetadata, List<Long> splitOffsets,
+                                  DataFile.DataFileType dataFileType) {
     String location = stat.getPath().toString();
     FileFormat format = FileFormat.fromFileName(location);
     return new GenericDataFile(
-        location, format, partition, stat.getLen(), metrics, keyMetadata.buffer(), splitOffsets);
+        location, format, partition, stat.getLen(), metrics, keyMetadata.buffer(), splitOffsets, dataFileType);
   }
 
   public static DataFile fromInputFile(InputFile file, PartitionData partition, long rowCount) {
@@ -143,17 +144,18 @@ public class DataFiles {
   }
 
   public static DataFile fromEncryptedOutputFile(EncryptedOutputFile encryptedFile, PartitionData partition,
-                                                Metrics metrics, List<Long> splitOffsets) {
+                                                 Metrics metrics, List<Long> splitOffsets,
+                                                 DataFile.DataFileType dataFileType) {
     EncryptionKeyMetadata keyMetadata = encryptedFile.keyMetadata();
     InputFile file = encryptedFile.encryptingOutputFile().toInputFile();
     if (encryptedFile instanceof HadoopInputFile) {
-      return fromStat(((HadoopInputFile) file).getStat(), partition, metrics, keyMetadata, splitOffsets);
+      return fromStat(((HadoopInputFile) file).getStat(), partition, metrics, keyMetadata, splitOffsets, dataFileType);
     }
 
     String location = file.location();
     FileFormat format = FileFormat.fromFileName(location);
-    return new GenericDataFile(
-        location, format, partition, file.getLength(), metrics, keyMetadata.buffer(), splitOffsets);
+    return new GenericDataFile(location, format, partition, file.getLength(), metrics,
+        keyMetadata.buffer(), splitOffsets, dataFileType);
   }
 
   public static DataFile fromManifest(ManifestFile manifest) {
@@ -207,6 +209,7 @@ public class DataFiles {
     private Map<Integer, ByteBuffer> upperBounds = null;
     private ByteBuffer keyMetadata = null;
     private List<Long> splitOffsets = null;
+    private DataFile.DataFileType dataFileType = DataFile.DataFileType.DATA_BASE_FILE;
 
     public Builder() {
       this.spec = null;
@@ -252,6 +255,7 @@ public class DataFiles {
       this.keyMetadata = toCopy.keyMetadata() == null ? null
           : ByteBuffers.copy(toCopy.keyMetadata());
       this.splitOffsets = toCopy.splitOffsets() == null ? null : copyList(toCopy.splitOffsets());
+      this.dataFileType = toCopy.dataFileType();
       return this;
     }
 
@@ -345,6 +349,11 @@ public class DataFiles {
       return withEncryptionKeyMetadata(newKeyMetadata.buffer());
     }
 
+    public Builder withDataFileType(DataFile.DataFileType newDataFileType) {
+      this.dataFileType = newDataFileType;
+      return this;
+    }
+
     public DataFile build() {
       Preconditions.checkArgument(filePath != null, "File path is required");
       if (format == null) {
@@ -357,8 +366,8 @@ public class DataFiles {
       return new GenericDataFile(
           filePath, format, isPartitioned ? partitionData.copy() : null,
           fileSizeInBytes, new Metrics(
-              recordCount, columnSizes, valueCounts, nullValueCounts, lowerBounds, upperBounds),
-          keyMetadata, splitOffsets);
+          recordCount, columnSizes, valueCounts, nullValueCounts, lowerBounds, upperBounds),
+          keyMetadata, splitOffsets, dataFileType);
     }
   }
 

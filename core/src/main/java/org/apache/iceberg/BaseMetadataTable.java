@@ -28,8 +28,10 @@ import org.apache.iceberg.io.LocationProvider;
 
 abstract class BaseMetadataTable implements Table {
   private PartitionSpec spec = PartitionSpec.unpartitioned();
+  private PrimaryKey pk = PrimaryKey.noPrimaryKey();
 
   abstract Table table();
+
   abstract String metadataTableName();
 
   @Override
@@ -65,6 +67,11 @@ abstract class BaseMetadataTable implements Table {
   @Override
   public Map<Integer, PartitionSpec> specs() {
     return ImmutableMap.of(spec.specId(), spec);
+  }
+
+  @Override
+  public PrimaryKey primaryKey() {
+    return pk;
   }
 
   @Override

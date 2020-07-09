@@ -49,7 +49,7 @@ class FastAppend extends SnapshotProducer<AppendFiles> implements AppendFiles {
   private final List<DataFile> newFiles = Lists.newArrayList();
   private final List<ManifestFile> appendManifests = Lists.newArrayList();
   private final List<ManifestFile> rewrittenAppendManifests = Lists.newArrayList();
-  private ManifestFile newManifest = null;
+  private final List<ManifestFile> newManifests = Lists.newArrayList();
   private boolean hasNewFiles = false;
 
   FastAppend(String tableName, TableOperations ops) {
@@ -115,17 +115,18 @@ class FastAppend extends SnapshotProducer<AppendFiles> implements AppendFiles {
     InputFile toCopy = ops.io().newInputFile(manifest.path());
     OutputFile newManifestPath = newManifestOutput();
     return ManifestFiles.copyAppendManifest(
-        current.formatVersion(), toCopy, current.specsById(), newManifestPath, snapshotId(), summaryBuilder);
+        current.formatVersion(), toCopy, current.specsById(), newManifestPath, snapshotId(), summaryBuilder,
+        manifest.manifestType());
   }
 
   @Override
   public List<ManifestFile> apply(TableMetadata base) {
-    List<ManifestFile> newManifests = Lists.newArrayList();
+    List<ManifestFile> manifestFileList = Lists.newArrayList();
 
     try {
-      ManifestFile manifest = writeManifest();
-      if (manifest != null) {
-        newManifests.add(manifest);
+      List<ManifestFile> writtenManifests = writeManifest();
+      if (writtenManifests != null) {
+        manifestFileList.addAll(writtenManifests);
       }
     } catch (IOException e) {
       throw new RuntimeIOException(e, "Failed to write manifest");
@@ -135,13 +136,13 @@ class FastAppend extends SnapshotProducer<AppendFiles> implements AppendFiles {
     Iterable<ManifestFile> appendManifestsWithMetadata = Iterables.transform(
         Iterables.concat(appendManifests, rewrittenAppendManifests),
         manifest -> GenericManifestFile.copyOf(manifest).withSnapshotId(snapshotId()).build());
-    Iterables.addAll(newManifests, appendManifestsWithMetadata);
+    Iterables.addAll(manifestFileList, appendManifestsWithMetadata);
 
     if (base.currentSnapshot() != null) {
-      newManifests.addAll(base.currentSnapshot().manifests());
+      manifestFileList.addAll(base.currentSnapshot().manifests());
     }
 
-    return newManifests;
+    return manifestFileList;
   }
 
   @Override
@@ -158,8 +159,10 @@ class FastAppend extends SnapshotProducer<AppendFiles> implements AppendFiles {
 
   @Override
   protected void cleanUncommitted(Set<ManifestFile> committed) {
-    if (newManifest != null && !committed.contains(newManifest)) {
-      deleteFile(newManifest.path());
+    for (ManifestFile manifestFile : newManifests) {
+      if (!committed.contains(manifestFile)) {
+        deleteFile(manifestFile.path());
+      }
     }
 
     // clean up only rewrittenAppendManifests as they are always owned by the table
@@ -171,24 +174,50 @@ class FastAppend extends SnapshotProducer<AppendFiles> implements AppendFiles {
     }
   }
 
-  private ManifestFile writeManifest() throws IOException {
-    if (hasNewFiles && newManifest != null) {
-      deleteFile(newManifest.path());
-      newManifest = null;
+  private List<ManifestFile> writeManifest() throws IOException {
+    if (hasNewFiles && newManifests.size() > 0) {
+      for (ManifestFile manifestFile : newManifests) {
+        deleteFile(manifestFile.path());
+      }
+      newManifests.clear();
     }
 
-    if (newManifest == null && newFiles.size() > 0) {
-      ManifestWriter writer = newManifestWriter(spec);
-      try {
-        writer.addAll(newFiles);
-      } finally {
-        writer.close();
+    if (newManifests.size() == 0 && newFiles.size() > 0) {
+      // Separate the INSERT data files and DELETE data files into two different manifest file, so that we could
+      // find the relative differential files for a given data file when planing the task.
+      List<DataFile> dataFiles = Lists.newArrayList();
+      List<DataFile> deleteFiles = Lists.newArrayList();
+      for (DataFile dataFile : newFiles) {
+        if (dataFile.dataFileType().equals(DataFile.DataFileType.DATA_BASE_FILE)) {
+          dataFiles.add(dataFile);
+        } else {
+          deleteFiles.add(dataFile);
+        }
       }
 
-      this.newManifest = writer.toManifestFile();
+      if (dataFiles.size() > 0) {
+        ManifestWriter baseWriter = newManifestWriter(spec, ManifestFile.ManifestType.DATA_FILES);
+        try {
+          baseWriter.addAll(dataFiles);
+        } finally {
+          baseWriter.close();
+        }
+        newManifests.add(baseWriter.toManifestFile());
+      }
+
+      if (deleteFiles.size() > 0) {
+        ManifestWriter deleteWriter = newManifestWriter(spec, ManifestFile.ManifestType.DELETE_FILES);
+        try {
+          deleteWriter.addAll(deleteFiles);
+        } finally {
+          deleteWriter.close();
+        }
+        newManifests.add(deleteWriter.toManifestFile());
+      }
+
       hasNewFiles = false;
     }
 
-    return newManifest;
+    return newManifests;
   }
 }

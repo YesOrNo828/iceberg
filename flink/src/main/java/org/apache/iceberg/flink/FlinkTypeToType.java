@@ -37,6 +37,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -120,9 +121,11 @@ public class FlinkTypeToType extends FlinkTypeVisitor<Type> {
       return Types.IntegerType.get();
     } else if (inner instanceof BigIntType) {
       return Types.LongType.get();
-    } else if (inner instanceof VarBinaryType ||
-        inner instanceof BinaryType) {
+    } else if (inner instanceof VarBinaryType) {
       return Types.BinaryType.get();
+    } else if (inner instanceof BinaryType) {
+      int len = ((BinaryType) inner).getLength();
+      return Types.FixedType.ofLength(len);
     } else if (inner instanceof FloatType) {
       return Types.FloatType.get();
     } else if (inner instanceof DoubleType) {
@@ -133,7 +136,8 @@ public class FlinkTypeToType extends FlinkTypeVisitor<Type> {
       return Types.TimeType.get();
     } else if (inner instanceof TimestampType) {
       return Types.TimestampType.withoutZone();
-    } else if (inner instanceof ZonedTimestampType) {
+//    } else if (inner instanceof ZonedTimestampType) {
+    } else if (inner instanceof LocalZonedTimestampType) {
       return Types.TimestampType.withZone();
     } else if (inner instanceof DecimalType) {
       DecimalType decimalType = (DecimalType) inner;

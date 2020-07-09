@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -102,7 +103,7 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
   private boolean failMissingDeletePaths = false;
 
   // cache the new manifest once it is written
-  private ManifestFile cachedNewManifest = null;
+  private List<ManifestFile> cachedNewManifests = Lists.newArrayList();
   private ManifestFile firstAppendedManifest = null;
   private boolean hasNewFiles = false;
 
@@ -235,7 +236,8 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
     InputFile toCopy = ops.io().newInputFile(manifest.path());
     OutputFile newManifestPath = newManifestOutput();
     return ManifestFiles.copyAppendManifest(
-        current.formatVersion(), toCopy, current.specsById(), newManifestPath, snapshotId(), appendedManifestsSummary);
+        current.formatVersion(), toCopy, current.specsById(), newManifestPath, snapshotId(), appendedManifestsSummary,
+        manifest.manifestType());
   }
 
   @Override
@@ -243,6 +245,7 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
     return summaryBuilder.build();
   }
 
+  @SuppressWarnings("checkstyle:CyclomaticComplexity")
   @Override
   public List<ManifestFile> apply(TableMetadata base) {
     summaryBuilder.clear();
@@ -269,8 +272,8 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
           summaryBuilder.addedFile(spec, file);
         }
 
-        ManifestFile newManifest = newFilesAsManifest();
-        newManifests = Iterables.concat(ImmutableList.of(newManifest), appendManifests, rewrittenAppendManifests);
+        List<ManifestFile> baseDiffManifests = newFilesAsManifest();
+        newManifests = Iterables.concat(baseDiffManifests, appendManifests, rewrittenAppendManifests);
       } else {
         newManifests = Iterables.concat(appendManifests, rewrittenAppendManifests);
       }
@@ -300,7 +303,24 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
       if (mergeEnabled) {
         groupManifestsByPartitionSpec(groups, unmergedManifests);
         for (Map.Entry<Integer, List<ManifestFile>> entry : groups.entrySet()) {
-          Iterables.addAll(manifests, mergeGroup(entry.getKey(), entry.getValue()));
+          // The entry#getValue contains all the manifests for a given specification id, both DATA and DELETE manifest
+          // are included. But we don't want to merge the DATA and DELETE manifests together so we MUST merge DATA and
+          // DELETE separately.
+          List<ManifestFile> dataManifests = Lists.newArrayList();
+          List<ManifestFile> deleteManifests = Lists.newArrayList();
+          for (ManifestFile manifestFile : entry.getValue()) {
+            if (manifestFile.manifestType().equals(ManifestFile.ManifestType.DATA_FILES)) {
+              dataManifests.add(manifestFile);
+            } else {
+              deleteManifests.add(manifestFile);
+            }
+          }
+          if (dataManifests.size() > 0) {
+            Iterables.addAll(manifests, mergeGroup(entry.getKey(), dataManifests));
+          }
+          if (deleteManifests.size() > 0) {
+            Iterables.addAll(manifests, mergeGroup(entry.getKey(), deleteManifests));
+          }
         }
       } else {
         Iterables.addAll(manifests, unmergedManifests);
@@ -413,9 +433,14 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
   }
 
   private void cleanUncommittedAppends(Set<ManifestFile> committed) {
-    if (cachedNewManifest != null && !committed.contains(cachedNewManifest)) {
-      deleteFile(cachedNewManifest.path());
-      this.cachedNewManifest = null;
+    if (cachedNewManifests.size() > 0) {
+      for (Iterator<ManifestFile> it = cachedNewManifests.iterator(); it.hasNext(); ) {
+        ManifestFile manifestFile = it.next();
+        if (!committed.contains(manifestFile)) {
+          deleteFile(manifestFile.path());
+          it.remove();
+        }
+      }
     }
 
     // rewritten manifests are always owned by the table
@@ -646,7 +671,7 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
           // if the bin has a new manifest (the new data files) or appended manifest file then only merge it
           // if the number of manifests is above the minimum count. this is applied only to bins with an in-memory
           // manifest so that large manifests don't prevent merging older groups.
-          if ((bin.contains(cachedNewManifest) || bin.contains(firstAppendedManifest)) &&
+          if ((bin.containsAll(cachedNewManifests) || bin.contains(firstAppendedManifest)) &&
               bin.size() < minManifestsCountToMerge) {
             // not enough to merge, add all manifest files to the output list
             outputManifests.addAll(bin);
@@ -700,24 +725,49 @@ abstract class MergingSnapshotProducer<ThisT> extends SnapshotProducer<ThisT> {
     return manifest;
   }
 
-  private ManifestFile newFilesAsManifest() throws IOException {
-    if (hasNewFiles && cachedNewManifest != null) {
-      deleteFile(cachedNewManifest.path());
-      cachedNewManifest = null;
+  private List<ManifestFile> newFilesAsManifest() throws IOException {
+    if (hasNewFiles && cachedNewManifests.size() > 0) {
+      for (ManifestFile manifestFile : cachedNewManifests) {
+        deleteFile(manifestFile.path());
+      }
+      cachedNewManifests.clear();
     }
 
-    if (cachedNewManifest == null) {
-      ManifestWriter writer = newManifestWriter(spec);
-      try {
-        writer.addAll(newFiles);
-      } finally {
-        writer.close();
+    if (cachedNewManifests.size() == 0 && newFiles.size() > 0) {
+      List<DataFile> dataFiles = Lists.newArrayList();
+      List<DataFile> deleteFiles = Lists.newArrayList();
+
+      for (DataFile dataFile : newFiles) {
+        if (dataFile.dataFileType().equals(DataFile.DataFileType.DATA_BASE_FILE)) {
+          dataFiles.add(dataFile);
+        } else {
+          deleteFiles.add(dataFile);
+        }
       }
 
-      this.cachedNewManifest = writer.toManifestFile();
+      if (dataFiles.size() > 0) {
+        ManifestWriter dataWriter = newManifestWriter(spec, ManifestFile.ManifestType.DATA_FILES);
+        try {
+          dataWriter.addAll(dataFiles);
+        } finally {
+          dataWriter.close();
+        }
+        this.cachedNewManifests.add(dataWriter.toManifestFile());
+      }
+
+      if (deleteFiles.size() > 0) {
+        ManifestWriter deleteWriter = newManifestWriter(spec, ManifestFile.ManifestType.DELETE_FILES);
+        try {
+          deleteWriter.addAll(deleteFiles);
+        } finally {
+          deleteWriter.close();
+        }
+        this.cachedNewManifests.add(deleteWriter.toManifestFile());
+      }
+
       this.hasNewFiles = false;
     }
 
-    return cachedNewManifest;
+    return cachedNewManifests;
   }
 }

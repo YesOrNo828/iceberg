@@ -40,10 +40,11 @@ public abstract class ManifestWriter implements FileAppender<DataFile> {
    * Manifests created by this writer have all entry snapshot IDs set to null.
    * All entries will inherit the snapshot ID that will be assigned to the manifest on commit.
    *
-   * @param spec {@link PartitionSpec} used to produce {@link DataFile} partition tuples
+   * @param spec       {@link PartitionSpec} used to produce {@link DataFile} partition tuples
    * @param outputFile the destination file location
    * @return a manifest writer
-   * @deprecated will be removed in 0.9.0; use {@link ManifestFiles#write(PartitionSpec, OutputFile)} instead.
+   * @deprecated will be removed in 0.9.0; use
+   * {@link ManifestFiles#write(PartitionSpec, OutputFile, org.apache.iceberg.ManifestFile.ManifestType)} instead.
    */
   @Deprecated
   public static ManifestWriter write(PartitionSpec spec, OutputFile outputFile) {
@@ -65,14 +66,16 @@ public abstract class ManifestWriter implements FileAppender<DataFile> {
   private int deletedFiles = 0;
   private long deletedRows = 0L;
   private Long minSequenceNumber = null;
+  private ManifestFile.ManifestType manifestType;
 
-  private ManifestWriter(PartitionSpec spec, OutputFile file, Long snapshotId) {
+  private ManifestWriter(PartitionSpec spec, OutputFile file, Long snapshotId, ManifestFile.ManifestType manifestType) {
     this.file = file;
     this.specId = spec.specId();
     this.writer = newAppender(spec, file);
     this.snapshotId = snapshotId;
     this.reused = new GenericManifestEntry(spec.partitionType());
     this.stats = new PartitionSummary(spec);
+    this.manifestType = manifestType;
   }
 
   protected abstract ManifestEntry prepare(ManifestEntry entry);
@@ -165,7 +168,8 @@ public abstract class ManifestWriter implements FileAppender<DataFile> {
     // sequence number is the one that will be assigned when this is committed. pass UNASSIGNED_SEQ to inherit it.
     long minSeqNumber = minSequenceNumber != null ? minSequenceNumber : UNASSIGNED_SEQ;
     return new GenericManifestFile(file.location(), writer.length(), specId, UNASSIGNED_SEQ, minSeqNumber, snapshotId,
-        addedFiles, addedRows, existingFiles, existingRows, deletedFiles, deletedRows, stats.summaries());
+        addedFiles, addedRows, existingFiles, existingRows, deletedFiles, deletedRows, stats.summaries(),
+        manifestType);
   }
 
   @Override
@@ -177,8 +181,8 @@ public abstract class ManifestWriter implements FileAppender<DataFile> {
   static class V2Writer extends ManifestWriter {
     private V2Metadata.IndexedManifestEntry entryWrapper;
 
-    V2Writer(PartitionSpec spec, OutputFile file, Long snapshotId) {
-      super(spec, file, snapshotId);
+    V2Writer(PartitionSpec spec, OutputFile file, Long snapshotId, ManifestFile.ManifestType manifestType) {
+      super(spec, file, snapshotId, manifestType);
       this.entryWrapper = new V2Metadata.IndexedManifestEntry(snapshotId, spec.partitionType());
     }
 
@@ -210,7 +214,7 @@ public abstract class ManifestWriter implements FileAppender<DataFile> {
     private V1Metadata.IndexedManifestEntry entryWrapper;
 
     V1Writer(PartitionSpec spec, OutputFile file, Long snapshotId) {
-      super(spec, file, snapshotId);
+      super(spec, file, snapshotId, ManifestFile.ManifestType.DATA_FILES);
       this.entryWrapper = new V1Metadata.IndexedManifestEntry(spec.partitionType());
     }
 

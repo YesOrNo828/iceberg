@@ -151,9 +151,9 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
   @Override
   public void invoke(Tuple2<Boolean, Row> tuple, SinkFunction.Context context) throws Exception {
     if (tuple.f0) {
-      this.writer.write(tuple.f1);
+      this.writer.insert(tuple.f1);
     } else {
-      throw new UnsupportedOperationException("Not support DELETE yet.");
+      this.writer.delete(tuple.f1);
     }
   }
 
@@ -163,9 +163,9 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
     LOG.info("Start to flush snapshot state to state backend, table: {}, checkpointId: {}", table, checkpointId);
     writer.close();
     List<DataFile> dataFiles = writer.getCompleteFiles();
+    // Remember to clear the writer's cached complete files.
+    writer.reset();
     completeFilesPerCheckpoint.put(checkpointId, Lists.newArrayList(dataFiles.iterator()));
-    // Remember to clear the writer's complete files.
-    dataFiles.clear();
 
     // Update the persisted state.
     globalStates.clear();
@@ -233,13 +233,14 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
 
     @Override
     public FileAppender<Row> newAppender(OutputFile outputFile, FileFormat format) {
-      MetricsConfig metricsConfig = MetricsConfig.fromProperties(table.properties());
+      Map<String, String> props = table.properties();
+      MetricsConfig metricsConfig = MetricsConfig.fromProperties(props);
       try {
         switch (format) {
           case PARQUET:
             return Parquet.write(outputFile)
                 .createWriterFunc(FlinkParquetWriters::buildWriter)
-                .setAll(table.properties())
+                .setAll(props)
                 .metricsConfig(metricsConfig)
                 .schema(table.schema())
                 .overwrite()
