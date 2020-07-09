@@ -28,7 +28,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class IcebergValidator extends ConnectorDescriptorValidator {
+public class IcebergValidator extends ConnectorDescriptorValidator {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergValidator.class);
 
   public static final String CONNECTOR_TYPE = "connector.type";
