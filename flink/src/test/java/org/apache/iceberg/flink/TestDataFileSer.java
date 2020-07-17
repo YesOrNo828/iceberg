@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  */
 public class TestDataFileSer {
   private static final Logger LOG = LoggerFactory.getLogger(TestDataFileSer.class);
-  @Test
+//  @Test
   public void testSet() {
 
     String location = "/Users/yexianxun/dev/iceberg-data";

@@ -26,6 +26,9 @@ import org.apache.iceberg.types.Types;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -53,6 +56,34 @@ public class TestPartitionKey {
     PartitionKey pk = builder.build(row);
     String actual = spec.partitionToPath(pk);
     Assert.assertEquals("should be the same", "ts_hour=2020-06-01-11/level=info/sequence_number=100", actual);
+  }
+
+  @Test
+  public void testPartitionKeyTimeZone() {
+    Schema schema = new Schema(
+            Types.NestedField.optional(1, "level", Types.StringType.get()),
+            Types.NestedField.optional(2, "sequence_number", Types.LongType.get()),
+            Types.NestedField.optional(3, "message", Types.StringType.get()),
+            Types.NestedField.optional(4, "ts", Types.TimestampType.withZone())
+    );
+
+    PartitionSpec spec = PartitionSpec.builderFor(schema)
+            .hour("ts")
+            .identity("level")
+            .identity("sequence_number")
+            .build();
+    PartitionKey.Builder builder = new PartitionKey.Builder(spec);
+    String dateFormat = "2019-11-11T10:00:01Z";
+    Instant instant = Instant.parse(dateFormat);
+    Row row = Row.of(instant, "info", 100L, "This is an info message");
+    PartitionKey pk = builder.build(row);
+    String actual = spec.partitionToPath(pk);
+    LocalDateTime ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH");
+
+    String partitionHour = sdf.format(Timestamp.valueOf(ldt));
+    Assert.assertEquals("should be the same", "ts_hour=" + partitionHour + "/level=info/sequence_number=100", actual);
   }
 
   @Test

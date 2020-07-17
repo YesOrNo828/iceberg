@@ -96,7 +96,7 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
     });
   }
 
-  @Test
+//  @Test
   public void testCreateTableWithKerberos() {
     String tableLocationPre = "hdfs://bdms-test/user/sloth/iceberg/";
     String hdfsLocation = "/Users/yexianxun/dev/env/mammut-test-hive/hdfs-site.xml";
@@ -122,7 +122,7 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
     }
   }
 
-  @Test
+//  @Test
   public void testCreateTableTimePartitionWithKerberos() {
     String tableLocationPre = "hdfs://bdms-test/user/sloth/iceberg/";
     String hdfsLocation = "/Users/yexianxun/dev/env/mammut-test-hive/hdfs-site.xml";
@@ -216,7 +216,7 @@ public class TestFlinkIcebergSinkKerberos extends AbstractTestBase {
 //    conf.set(KerberosLoginUtil.KERBEROS_LOGIN_PRINCIPAL, "bdms_yexianxun/dev@BDMS.163.COM");
   }
 
-  @Test
+//  @Test
   public void testHdfsIcebergSink() throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     // Enable the checkpoint.

@@ -35,7 +35,7 @@ public class TestFlinkSchemaUtil {
         .build();
     Schema actualSchema = FlinkSchemaUtil.convert(flinkSchema);
     Schema expectedSchema = new Schema(
-        Types.NestedField.optional(0, "ts", Types.TimestampType.withZone(), null)
+        Types.NestedField.optional(0, "ts", Types.TimestampType.withoutZone(), null)
     );
     Assert.assertEquals(expectedSchema.toString(), actualSchema.toString());
   }

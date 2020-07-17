@@ -25,6 +25,8 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.flink.PartitionKey;
 
+import java.util.List;
+
 public class TaskWriterFactory {
 
   private TaskWriterFactory() {
@@ -34,7 +36,8 @@ public class TaskWriterFactory {
                                                  FileAppenderFactory<Row> fileAppenderFactory,
                                                  OutputFileFactory outputFileFactory,
                                                  long targetFileSizeBytes,
-                                                 FileFormat fileFormat) {
+                                                 FileFormat fileFormat,
+                                                 List<Integer> localTimeZoneFieldIndexes) {
     final TaskAppender<Row> insertOnlyAppender;
     final TaskAppender<Row> deleteOnlyAppender;
 
@@ -43,12 +46,14 @@ public class TaskWriterFactory {
           outputFileFactory::newOutputFile,
           targetFileSizeBytes,
           fileFormat,
-          DataFile.DataFileType.DATA_BASE_FILE);
+          DataFile.DataFileType.DATA_BASE_FILE,
+          localTimeZoneFieldIndexes);
       deleteOnlyAppender = new UnpartitionedAppender<>(fileAppenderFactory,
           outputFileFactory::newOutputFile,
           targetFileSizeBytes,
           fileFormat,
-          DataFile.DataFileType.DELETE_DIFF_FILE);
+          DataFile.DataFileType.DELETE_DIFF_FILE,
+          localTimeZoneFieldIndexes);
     } else {
       PartitionKey.Builder builder = new PartitionKey.Builder(spec);
       insertOnlyAppender = new PartitionAppender<>(spec,
@@ -57,14 +62,16 @@ public class TaskWriterFactory {
           builder::build,
           targetFileSizeBytes,
           fileFormat,
-          DataFile.DataFileType.DATA_BASE_FILE);
+          DataFile.DataFileType.DATA_BASE_FILE,
+          localTimeZoneFieldIndexes);
       deleteOnlyAppender = new PartitionAppender<>(spec,
           fileAppenderFactory,
           outputFileFactory::newOutputFile,
           builder::build,
           targetFileSizeBytes,
           fileFormat,
-          DataFile.DataFileType.DELETE_DIFF_FILE);
+          DataFile.DataFileType.DELETE_DIFF_FILE,
+          localTimeZoneFieldIndexes);
     }
 
     return new TaskWriterImpl<>(insertOnlyAppender, deleteOnlyAppender);

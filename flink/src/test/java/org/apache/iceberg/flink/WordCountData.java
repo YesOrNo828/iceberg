@@ -46,12 +46,26 @@ public class WordCountData {
       Types.NestedField.optional(2, "num", Types.IntegerType.get())
   );
 
+
+  public static final Schema SCHEMA_TZ = new Schema(
+          Types.NestedField.optional(1, "ts", Types.TimestampType.withZone()),
+          Types.NestedField.optional(2, "word", Types.StringType.get()),
+          Types.NestedField.optional(3, "num", Types.IntegerType.get())
+  );
+
   public static final TableSchema FLINK_SCHEMA = TableSchema.builder()
       .field("word", DataTypes.STRING())
       .field("num", DataTypes.INT())
       .build();
 
+  public static final TableSchema FLINK_SCHEMA_TZ = TableSchema.builder()
+          .field("ts", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))
+          .field("word", DataTypes.STRING())
+          .field("num", DataTypes.INT())
+          .build();
+
   public static final Record RECORD = GenericRecord.create(SCHEMA);
+  public static final Record RECORD_TZ = GenericRecord.create(SCHEMA_TZ);
 
   public static final Comparator<Record> RECORD_COMPARATOR = (r1, r2) -> {
     int ret = StringUtils.compare((String) r1.getField("word"), (String) r2.getField("word"));
@@ -62,7 +76,11 @@ public class WordCountData {
   };
 
   public static Table createTable(String tableIdentifier, boolean partitioned) {
-    return createTable(tableIdentifier, ImmutableMap.of(), partitioned);
+    return createTable(tableIdentifier, ImmutableMap.of(), partitioned, false);
+  }
+
+  public static Table createTableWithTZ(String tableIdentifier, boolean partitioned) {
+    return createTable(tableIdentifier, ImmutableMap.of(), partitioned, true);
   }
 
   public static Table createTable(String tableIdentifier, Map<String, String> properties, boolean partitioned) {
@@ -71,6 +89,26 @@ public class WordCountData {
       spec = PartitionSpec.builderFor(SCHEMA).identity("word").build();
     } else {
       spec = PartitionSpec.unpartitioned();
+    }
+    return new HadoopTables().create(SCHEMA, spec, properties, tableIdentifier);
+  }
+
+  private static Table createTable(String tableIdentifier,
+                                   Map<String, String> properties,
+                                   boolean partitioned,
+                                   boolean timezone) {
+    PartitionSpec spec;
+    if (partitioned) {
+      if (timezone) {
+        spec = PartitionSpec.builderFor(SCHEMA_TZ).hour("ts").build();
+      } else {
+        spec = PartitionSpec.builderFor(SCHEMA).identity("word").build();
+      }
+    } else {
+      spec = PartitionSpec.unpartitioned();
+    }
+    if (timezone) {
+      return new HadoopTables().create(SCHEMA_TZ, spec, properties, tableIdentifier);
     }
     return new HadoopTables().create(SCHEMA, spec, properties, tableIdentifier);
   }

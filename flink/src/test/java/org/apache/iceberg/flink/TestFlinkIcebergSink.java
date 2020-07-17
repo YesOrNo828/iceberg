@@ -49,7 +49,6 @@ public class TestFlinkIcebergSink extends AbstractTestBase {
   public void before() throws IOException {
     File folder = tempFolder.newFolder();
     tableLocation = folder.getAbsolutePath();
-    tableLocation = "/Users/yexianxun/dev/iceberg-data";
   }
 
   @Test

@@ -20,6 +20,8 @@ import sun.security.krb5.KrbException;
 import java.io.File;
 import java.io.IOException;
 
+import static org.apache.iceberg.hadoop.KerberosLoginUtil.classPathKey;
+
 /**
  * Created by yexianxun@corp.netease.com on 2020/5/18.
  */
@@ -44,6 +46,21 @@ public class TestMusicABTest {
       Types.NestedField.optional(12, "ds_fields", Types.MapType.ofOptional(15, 16, Types.StringType.get(), Types.StringType.get()))
       );
 
+  private static final org.apache.iceberg.Schema SCHEMA_TZ = new org.apache.iceberg.Schema(
+          Types.NestedField.optional(1, "flink_process_time", Types.TimestampType.withZone()),
+          Types.NestedField.optional(2, "deviceid", Types.StringType.get()),
+          Types.NestedField.optional(3, "userid", Types.StringType.get()),
+          Types.NestedField.optional(4, "ip", Types.StringType.get()),
+          Types.NestedField.optional(5, "appver", Types.StringType.get()),
+          Types.NestedField.optional(6, "os", Types.StringType.get()),
+          Types.NestedField.optional(7, "osver", Types.StringType.get()),
+          Types.NestedField.optional(8, "logtime", Types.LongType.get()),
+          Types.NestedField.optional(9, "action", Types.StringType.get()),
+          Types.NestedField.optional(10, "props", Types.MapType.ofOptional(13, 14, Types.StringType.get(), Types.StringType.get())),
+          Types.NestedField.optional(11, "ds_timestamp", Types.LongType.get()),
+          Types.NestedField.optional(12, "ds_fields", Types.MapType.ofOptional(15, 16, Types.StringType.get(), Types.StringType.get()))
+  );
+
   @Before
   public void createConfiguration() {
     String hdfsLocation = "/Users/yexianxun/dev/env/mammut-test-hive/hdfs-site.xml";
@@ -52,6 +69,7 @@ public class TestMusicABTest {
     conf = new Configuration(false);
     conf.addResource(new Path(hdfsLocation));
     conf.addResource(new Path(coreLocation));
+    conf.set(classPathKey, "/Users/yexianxun/dev/env/mammut-test-hive");
   }
 
   private static void initKrbConf(Configuration conf) {
@@ -62,7 +80,7 @@ public class TestMusicABTest {
     conf.set(KerberosLoginUtil.KERBEROS_LOGIN_PRINCIPAL, principal);
   }
 
-  @Test
+//  @Test
   public void createUnPartitionTable() throws IOException, KrbException {
     String tableLocation = "hdfs://bdms-test/user/sloth/iceberg/music_user_action_abtest_un_partition";
     PartitionSpec spec = PartitionSpec
@@ -98,7 +116,7 @@ public class TestMusicABTest {
     }
   }
 
-  @Test
+//  @Test
   public void createPartitionTable() throws IOException {
     String tableLocation = "hdfs://bdms-test/user/sloth/iceberg/music_user_action_abtest_partition_2";
     PartitionSpec spec = PartitionSpec
@@ -116,15 +134,15 @@ public class TestMusicABTest {
     }
   }
 
-  @Test
-  public void createPartitionTableHZ() throws IOException {
-    String tableLocation = "hdfs://sloth-hz-20/user/sloth/iceberg/music_user_action_abtest_partition";
+//  @Test
+  public void createPartitionTableJD() throws IOException {
+    String tableLocation = "hdfs://sloth-jd-pub/user/sloth/iceberg/music_user_action_abtest_partition";
     PartitionSpec spec = PartitionSpec
         .builderFor(SCHEMA)
         .hour("flink_process_time")
         .build();
-    String hdfsLocation = "/Users/yexianxun/IdeaProjects/sloth/sloth/sloth-conf/src/main/resources/dist/yarn_conf/conf_sloth20/hdfs-site.xml";
-    String coreLocation = "/Users/yexianxun/IdeaProjects/sloth/sloth/sloth-conf/src/main/resources/dist/yarn_conf/conf_sloth20/core-site.xml";
+    String hdfsLocation = "/Users/yexianxun/dev/env/hz_online/conf_sloth_jd_pub/hdfs-site.xml";
+    String coreLocation = "/Users/yexianxun/dev/env/hz_online/conf_sloth_jd_pub/core-site.xml";
 
     System.setProperty("HADOOP_USER_NAME", "sloth");
 
@@ -142,15 +160,15 @@ public class TestMusicABTest {
     }
   }
 
-  @Test
-  public void createPartitionTableJD() throws IOException {
-    String tableLocation = "hdfs://sloth-jd-pub/user/sloth/iceberg/music_user_action_abtest_partition";
+//  @Test
+  public void createPartitionTableJDTZ() throws IOException {
+    String tableLocation = "hdfs://sloth-jd-pub/user/sloth/iceberg/music_user_action_abtest_partition_tz";
     PartitionSpec spec = PartitionSpec
-        .builderFor(SCHEMA)
-        .hour("flink_process_time")
-        .build();
-    String hdfsLocation = "/Users/yexianxun/IdeaProjects/sloth/sloth/sloth-conf/src/main/resources/dist/yarn_conf/conf_sloth_jd_pub/hdfs-site.xml";
-    String coreLocation = "/Users/yexianxun/IdeaProjects/sloth/sloth/sloth-conf/src/main/resources/dist/yarn_conf/conf_sloth_jd_pub/core-site.xml";
+            .builderFor(SCHEMA_TZ)
+            .hour("flink_process_time")
+            .build();
+    String hdfsLocation = "/Users/yexianxun/dev/env/hz_online/conf_sloth_jd_pub/hdfs-site.xml";
+    String coreLocation = "/Users/yexianxun/dev/env/hz_online/conf_sloth_jd_pub/core-site.xml";
 
     System.setProperty("HADOOP_USER_NAME", "sloth");
 
@@ -163,7 +181,7 @@ public class TestMusicABTest {
       Table table = hadoopTables.load(tableLocation);
       Assert.assertNotNull(table);
     } catch (NoSuchTableException e) {
-      Table table = hadoopTables.create(SCHEMA, spec, tableLocation);
+      Table table = hadoopTables.create(SCHEMA_TZ, spec, tableLocation);
       Assert.assertNotNull(table);
     }
   }

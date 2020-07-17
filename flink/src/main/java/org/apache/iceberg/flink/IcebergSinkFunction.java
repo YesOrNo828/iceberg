@@ -21,6 +21,7 @@ package org.apache.iceberg.flink;
 
 import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -43,6 +44,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.types.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
@@ -94,20 +96,22 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
   private transient ListState<byte[]> globalStates;
   private transient CheckpointTaskState.StateSerializer stateSerializer;
   private transient NavigableMap<Long, List<DataFile>> completeFilesPerCheckpoint;
+  private List<Integer> localTimeZoneFieldIndexes;
 
   /**
    * Be careful to do any initialization in this constructor, because in {@link DataStream#addSink(SinkFunction)}
    * it will call {@link ClosureCleaner#clean(Object, ExecutionConfig.ClosureCleanerLevel, boolean)} to set all the
    * non-serializable inner members to be null.
-   *
-   * @param tableLocation What's the base path of the iceberg table.
+   *  @param tableLocation What's the base path of the iceberg table.
    * @param readSchema    The schema of source data which will be flowed to iceberg table.
    * @param conf          The hadoop's configuration.
+   * @param index
    */
-  private IcebergSinkFunction(String tableLocation, Schema readSchema, Configuration conf) {
+  private IcebergSinkFunction(String tableLocation, Schema readSchema, Configuration conf, List<Integer> index) {
     this.tableLocation = tableLocation;
     this.hadoopConf = new SerializableConfiguration(conf == null ? new Configuration() : conf);
     this.readSchema = readSchema;
+    this.localTimeZoneFieldIndexes = index;
   }
 
   @Override
@@ -137,7 +141,8 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
         appenderFactory,
         outputFileFactory,
         getTargetFileSizeBytes(),
-        fileFormat);
+        fileFormat,
+        localTimeZoneFieldIndexes);
 
     // Initialize the FLINK state.
     this.stateSerializer = CheckpointTaskState.createSerializer(table.spec().partitionType());
@@ -283,8 +288,17 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
 
     public IcebergSinkFunction build() {
       Preconditions.checkArgument(tableLocation != null, "Iceberg table location should't be null");
-      Schema schema = tableSchema == null ? null : FlinkSchemaUtil.convert(tableSchema);
-      return new IcebergSinkFunction(tableLocation, schema, conf);
+      Schema schema = null;
+      List<Integer> index = new ArrayList<>();
+      if (tableSchema != null) {
+        schema = FlinkSchemaUtil.convert(tableSchema);
+        for (int i = 0; i < tableSchema.getFieldDataTypes().length; i++) {
+          if (tableSchema.getFieldDataTypes()[i].getLogicalType() instanceof LocalZonedTimestampType) {
+            index.add(i);
+          }
+        }
+      }
+      return new IcebergSinkFunction(tableLocation, schema, conf, index);
     }
   }
 }

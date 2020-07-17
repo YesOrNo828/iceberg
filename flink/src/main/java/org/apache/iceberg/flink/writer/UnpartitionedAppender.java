@@ -20,9 +20,13 @@
 package org.apache.iceberg.flink.writer;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+
+import org.apache.flink.types.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
@@ -41,18 +45,21 @@ public class UnpartitionedAppender<T> implements TaskAppender<T> {
 
   private EncryptedOutputFile currentOutputFile;
   private FileAppender<T> currentAppender = null;
+  private final List<Integer> localTimeZoneFieldIndexes;
 
   UnpartitionedAppender(FileAppenderFactory<T> factory,
                         Supplier<EncryptedOutputFile> outputFileSupplier,
                         long targetFileSize,
                         FileFormat fileFormat,
-                        DataFile.DataFileType dataFileType) {
+                        DataFile.DataFileType dataFileType,
+                        List<Integer> localTimeZoneFieldIndexes) {
     this.factory = factory;
     this.outputFileSupplier = outputFileSupplier;
     this.targetFileSize = targetFileSize;
     this.fileFormat = fileFormat;
     this.completeDataFiles = new ArrayList<>();
     this.dataFileType = dataFileType;
+    this.localTimeZoneFieldIndexes = localTimeZoneFieldIndexes;
   }
 
   @Override
@@ -60,6 +67,9 @@ public class UnpartitionedAppender<T> implements TaskAppender<T> {
     if (currentAppender == null) {
       currentOutputFile = outputFileSupplier.get();
       currentAppender = factory.newAppender(currentOutputFile.encryptingOutputFile(), fileFormat);
+    }
+    if (record instanceof Row) {
+      RowFieldValueConvertUtil.convertValue(localTimeZoneFieldIndexes, (Row) record);
     }
     currentAppender.add(record);
 

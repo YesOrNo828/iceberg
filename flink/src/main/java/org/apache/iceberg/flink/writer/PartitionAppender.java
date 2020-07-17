@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
@@ -56,6 +57,7 @@ public class PartitionAppender<T> implements TaskAppender<T> {
   private final FileFormat fileFormat;
   private final List<DataFile> completeDataFiles;
   private final DataFile.DataFileType dataFileType;
+  private final List<Integer> localTimeZoneFieldIndexes;
 
   PartitionAppender(PartitionSpec spec,
                     FileAppenderFactory<T> factory,
@@ -63,7 +65,8 @@ public class PartitionAppender<T> implements TaskAppender<T> {
                     Function<T, PartitionKey> keyGetter,
                     long targetFileSize,
                     FileFormat fileFormat,
-                    DataFile.DataFileType dataFileType) {
+                    DataFile.DataFileType dataFileType,
+                    List<Integer> localTimeZoneFieldIndexes) {
     this.spec = spec;
     this.factory = factory;
     this.outputFileGetter = outputFileGetter;
@@ -73,6 +76,7 @@ public class PartitionAppender<T> implements TaskAppender<T> {
     this.fileFormat = fileFormat;
     this.completeDataFiles = new ArrayList<>();
     this.dataFileType = dataFileType;
+    this.localTimeZoneFieldIndexes = localTimeZoneFieldIndexes;
   }
 
   @Override
@@ -84,6 +88,9 @@ public class PartitionAppender<T> implements TaskAppender<T> {
     if (writer == null) {
       writer = createWrappedFileAppender(partitionKey);
       writers.put(partitionKey, writer);
+    }
+    if (record instanceof Row) {
+      RowFieldValueConvertUtil.convertValue(localTimeZoneFieldIndexes, (Row) record);
     }
     writer.fileAppender.add(record);
 

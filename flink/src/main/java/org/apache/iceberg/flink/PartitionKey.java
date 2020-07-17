@@ -19,7 +19,9 @@
 
 package org.apache.iceberg.flink;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
@@ -98,16 +100,23 @@ public class PartitionKey implements StructLike {
         Object val = row.getField(i);
         if (val instanceof LocalDateTime) {
           LocalDateTime localDateTime = (LocalDateTime) val;
-          Long micros =
-              localDateTime
-                  .toInstant(ZoneOffset.UTC)
-                  .toEpochMilli() * 1000;
+          Long micros = getMicrosFromLocalDateTime(localDateTime);
+          partitionTuple[i] = transform.apply(micros);
+        } else if (val instanceof Instant) {
+          LocalDateTime localDateTime = LocalDateTime.ofInstant((Instant) val, ZoneId.systemDefault());
+          Long micros = getMicrosFromLocalDateTime(localDateTime);
           partitionTuple[i] = transform.apply(micros);
         } else {
           partitionTuple[i] = transform.apply(row.getField(i));
         }
       }
       return new PartitionKey(partitionTuple);
+    }
+
+    private Long getMicrosFromLocalDateTime(LocalDateTime localDateTime) {
+      return localDateTime
+              .toInstant(ZoneOffset.UTC)
+              .toEpochMilli() * 1000;
     }
   }
 }
