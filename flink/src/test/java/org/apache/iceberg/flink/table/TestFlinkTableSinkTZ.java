@@ -47,6 +47,7 @@ import org.junit.runners.Parameterized;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -72,7 +73,7 @@ public class TestFlinkTableSinkTZ extends AbstractTestBase {
     WordCountData.createTableWithTZ(tableLocation, true);
   }
 
-  private void testSQL(int parallelism, boolean useDDL) throws Exception {
+  private void testSQL(int parallelism, boolean useDDL, int jobTimes) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -137,31 +138,45 @@ public class TestFlinkTableSinkTZ extends AbstractTestBase {
     Preconditions.checkArgument(expected != null, "expected records shouldn't be null");
     Table newTable = new HadoopTables().load(tableLocation);
     List<Record> results = Lists.newArrayList(IcebergGenerics.read(newTable).build());
-    expected.sort(WordCountData.RECORD_COMPARATOR);
+    // depend on how many times the job restarted.
+    List<Record> allExpected = new ArrayList<>();
+    for (int i = 0; i < jobTimes; i++) {
+      allExpected.addAll(expected);
+    }
+    allExpected.sort(WordCountData.RECORD_COMPARATOR);
     results.sort(WordCountData.RECORD_COMPARATOR);
-    Assert.assertEquals(expected.size(), results.size());
-    for (int i = 0; i < expected.size(); i++) {
-      Assert.assertEquals(expected.get(i).toString(), results.get(i).toString());
+    Assert.assertEquals(allExpected.size(), results.size());
+    for (int i = 0; i < allExpected.size(); i++) {
+      Assert.assertEquals(allExpected.get(i).toString(), results.get(i).toString());
     }
   }
 
-  @Test(timeout = 5 * 60 * 1000)
+  @Test(timeout = 15 * 60 * 1000)
   public void testParallelismOneByDDL() throws Exception {
-    testSQL(1, true);
+    testSQL(1, true, 1);
+  }
+
+  @Test(timeout = 15 * 60 * 1000)
+  public void testParallelismOneByDDLUnRestored() throws Exception {
+    // sinking to the same table successful when restart new job with unRestored from checkpoint
+    for (int i = 1; i <= 2; i++) {
+      testSQL(1, true, i);
+      Thread.sleep(1000);
+    }
   }
 
   @Test
   public void testParallelismOneByDescriptor() throws Exception {
-    testSQL(1, false);
-  }
+    testSQL(1, false, 1);
+}
 
   @Test
   public void testMultipleParallelismByDDL() throws Exception {
-    testSQL(4, true);
+    testSQL(4, true, 1);
   }
 
   @Test
   public void testMultipleParallelismByDescriptor() throws Exception {
-    testSQL(4, false);
+    testSQL(4, false, 1);
   }
 }

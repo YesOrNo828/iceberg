@@ -51,13 +51,17 @@ class GlobalTableCommitter {
   private final GlobalCommitFunction commitFunction;
   private final int taskId;
 
-  GlobalTableCommitter(StreamingRuntimeContext context, String tableIdentifier, SerializableConfiguration hadoopConf) {
+  GlobalTableCommitter(StreamingRuntimeContext context,
+                       String tableIdentifier,
+                       SerializableConfiguration hadoopConf,
+                       boolean isRestored) {
     this.aggregateManager = context.getGlobalAggregateManager();
     this.taskId = context.getIndexOfThisSubtask();
     this.commitFunction = new GlobalCommitFunction(
         context.getNumberOfParallelSubtasks(),
         tableIdentifier,
-        hadoopConf
+        hadoopConf,
+        isRestored
     );
   }
 
@@ -86,16 +90,29 @@ class GlobalTableCommitter {
     private final int numberOfTasks;
     private final String tableIdentifier;
     private SerializableConfiguration hadoopConf;
+    private final boolean isRestored;
 
-    GlobalCommitFunction(int numberOfTasks, String tableIdentifier, SerializableConfiguration hadoopConf) {
+    GlobalCommitFunction(int numberOfTasks,
+                         String tableIdentifier,
+                         SerializableConfiguration hadoopConf,
+                         boolean isRestored) {
       this.numberOfTasks = numberOfTasks;
       this.tableIdentifier = tableIdentifier;
       this.hadoopConf = hadoopConf;
+      this.isRestored = isRestored;
     }
 
     @Override
     public GlobalJobState createAccumulator() {
-      return new GlobalJobState(getMaxCommittedCheckpointId(tableIdentifier, hadoopConf.get()));
+      GlobalJobState globalJobState;
+      if (isRestored) {
+        globalJobState = new GlobalJobState(getMaxCommittedCheckpointId(tableIdentifier, hadoopConf.get()));
+      } else {
+        globalJobState = new GlobalJobState(-1L);
+      }
+      LOG.info("isRestored:{}, tableIdentifier:{}, maxCommittedCheckpointId:{}.",
+          isRestored, tableIdentifier, globalJobState.maxCommittedCheckpointId);
+      return globalJobState;
     }
 
     @Override

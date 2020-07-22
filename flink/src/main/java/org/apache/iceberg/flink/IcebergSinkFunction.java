@@ -125,11 +125,13 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
       FlinkSchemaUtil.validate(readSchema, table.schema(), true, true);
     }
 
+    boolean isRestored = context.isRestored();
     // Initialize the global table committer
     this.globalCommitter = new GlobalTableCommitter(
         (StreamingRuntimeContext) this.getRuntimeContext(),
         tableLocation,
-        hadoopConf
+        hadoopConf,
+        isRestored
     );
 
     // Initialize the task writer.
@@ -148,7 +150,7 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
     this.stateSerializer = CheckpointTaskState.createSerializer(table.spec().partitionType());
     this.globalStates = context.getOperatorStateStore().getUnionListState(ICEBERG_STATE);
     this.completeFilesPerCheckpoint = new TreeMap<>();
-    if (context.isRestored()) {
+    if (isRestored) {
       this.completeFilesPerCheckpoint = unpackGlobalStates();
     }
   }
