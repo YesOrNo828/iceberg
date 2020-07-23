@@ -78,7 +78,7 @@ public class TestTaskWriter {
     FileAppenderFactory<Row> fileAppenderFactory = new TestFileAppenderFactory();
 
     return TaskWriterFactory.createTaskWriter(SPEC,
-        fileAppenderFactory, outputFileFactory, targetFileSizeBytes, FORMAT, Collections.emptyList());
+        fileAppenderFactory, outputFileFactory, targetFileSizeBytes, FORMAT, Collections.emptyList(), null);
   }
 
   @Test

@@ -80,24 +80,59 @@ public class PartitionKey implements StructLike {
   public static class Builder {
     private final int size;
     private final Transform[] transforms;
+    /**
+     * partition key names
+     */
+    private final String[] fieldNames;
+    private Integer[] partitionKeyIndices;
 
     @SuppressWarnings("unchecked")
     public Builder(PartitionSpec spec) {
       List<PartitionField> fields = spec.fields();
       this.size = fields.size();
       this.transforms = new Transform[size];
+      fieldNames = new String[size];
 
       for (int i = 0; i < size; i += 1) {
         PartitionField field = fields.get(i);
         this.transforms[i] = field.transform();
+        String fieldName = spec.schema().findField(field.sourceId()).name();
+        this.fieldNames[i] = fieldName;
       }
+    }
+
+    /**
+     * flink schema
+     * @param fields flink ddl field name
+     * @return
+     */
+    public Builder withFlinkSchema(String[] fields) {
+      if (fields == null) {
+        if (size > 0) {
+          throw new RuntimeException(String.format("iceberg partition key size:%s, but flink schema is null.", size));
+        }
+        return this;
+      }
+      partitionKeyIndices = new Integer[size];
+      List<String> flinkFieldNames = Arrays.asList(fields);
+      for (int i = 0; i < fieldNames.length; i++) {
+        String partitionKey = fieldNames[i];
+        if (flinkFieldNames.contains(partitionKey)) {
+          this.partitionKeyIndices[i] = flinkFieldNames.indexOf(partitionKey);
+        } else {
+          throw new IllegalArgumentException(
+              String.format("this partition key [%s] is not contain in flink schema %s.",
+              partitionKey, flinkFieldNames));
+        }
+      }
+      return this;
     }
 
     public PartitionKey build(Row row) {
       Object[] partitionTuple = new Object[size];
       for (int i = 0; i < partitionTuple.length; i += 1) {
         Transform<Object, Object> transform = transforms[i];
-        Object val = row.getField(i);
+        Object val = row.getField(this.partitionKeyIndices[i]);
         if (val instanceof LocalDateTime) {
           LocalDateTime localDateTime = (LocalDateTime) val;
           Long micros = getMicrosFromLocalDateTime(localDateTime);
@@ -107,7 +142,7 @@ public class PartitionKey implements StructLike {
           Long micros = getMicrosFromLocalDateTime(localDateTime);
           partitionTuple[i] = transform.apply(micros);
         } else {
-          partitionTuple[i] = transform.apply(row.getField(i));
+          partitionTuple[i] = transform.apply(val);
         }
       }
       return new PartitionKey(partitionTuple);

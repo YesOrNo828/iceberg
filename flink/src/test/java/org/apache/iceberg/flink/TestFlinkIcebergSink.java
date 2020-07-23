@@ -84,12 +84,15 @@ public class TestFlinkIcebergSink extends AbstractTestBase {
     Assert.assertNotNull(table);
 
     // Output the data stream to stdout.
+    IcebergSinkFunction.Builder builder = IcebergSinkFunction
+        .builder()
+        .withTableLocation(tableLocation)
+        .withConfiguration(conf);
+    if (partitionTable) {
+      builder.withTableSchema(WordCountData.FLINK_SCHEMA);
+    }
     dataStream.map(new WordCountData.Transformer())
-        .addSink(IcebergSinkFunction
-            .builder()
-            .withTableLocation(tableLocation)
-            .withConfiguration(conf)
-            .build());
+        .addSink(builder.build());
 
     // Execute the program.
     env.execute("Test Iceberg DataStream");

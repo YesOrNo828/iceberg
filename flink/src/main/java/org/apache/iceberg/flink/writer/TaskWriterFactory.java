@@ -37,7 +37,8 @@ public class TaskWriterFactory {
                                                  OutputFileFactory outputFileFactory,
                                                  long targetFileSizeBytes,
                                                  FileFormat fileFormat,
-                                                 List<Integer> localTimeZoneFieldIndexes) {
+                                                 List<Integer> localTimeZoneFieldIndexes,
+                                                 String[] flinkFields) {
     final TaskAppender<Row> insertOnlyAppender;
     final TaskAppender<Row> deleteOnlyAppender;
 
@@ -55,7 +56,7 @@ public class TaskWriterFactory {
           DataFile.DataFileType.DELETE_DIFF_FILE,
           localTimeZoneFieldIndexes);
     } else {
-      PartitionKey.Builder builder = new PartitionKey.Builder(spec);
+      PartitionKey.Builder builder = new PartitionKey.Builder(spec).withFlinkSchema(flinkFields);
       insertOnlyAppender = new PartitionAppender<>(spec,
           fileAppenderFactory,
           outputFileFactory::newOutputFile,
