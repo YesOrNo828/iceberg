@@ -105,14 +105,24 @@ class GlobalTableCommitter {
     @Override
     public GlobalJobState createAccumulator() {
       GlobalJobState globalJobState;
-      if (isRestored) {
-        globalJobState = new GlobalJobState(getMaxCommittedCheckpointId(tableIdentifier, hadoopConf.get()));
-      } else {
-        globalJobState = new GlobalJobState(-1L);
-      }
+      globalJobState = new GlobalJobState(generateMaxCheckpointId(false));
       LOG.info("isRestored:{}, tableIdentifier:{}, maxCommittedCheckpointId:{}.",
           isRestored, tableIdentifier, globalJobState.maxCommittedCheckpointId);
       return globalJobState;
+    }
+
+    /**
+     * 生成最大的checkpointId，当任务从ckp恢复、或已提交过table时都从manifest文件获取最大ckpId。
+     * @return maxCheckpointId
+     * @param hasCommittedOnce 是否提交过manifest文件
+     */
+    public long generateMaxCheckpointId(boolean hasCommittedOnce) {
+      long maxCheckpointId = -1L;
+      LOG.info("isRestored:{}, hasCommittedOnce:{}.", isRestored, hasCommittedOnce);
+      if (isRestored || hasCommittedOnce) {
+        return getMaxCommittedCheckpointId(tableIdentifier, hadoopConf.get());
+      }
+      return maxCheckpointId;
     }
 
     @Override
@@ -131,7 +141,7 @@ class GlobalTableCommitter {
       return globalJobState;
     }
 
-    private void commitUpToTable(long ckpId, Collection<DataFile> dataFiles) {
+    private void commitUpToTable(long ckpId, Collection<DataFile> dataFiles, GlobalJobState globalJobState) {
       if (dataFiles.size() == 0) {
         LOG.info("Skip to commit table: {}, checkpointId: {} because there's no data file to commit now",
             tableIdentifier, ckpId);
@@ -146,6 +156,7 @@ class GlobalTableCommitter {
       appendFiles.set(FLINK_MAX_COMMITTED_CHECKPOINT_ID, Long.toString(ckpId));
       dataFiles.forEach(appendFiles::appendFile);
       appendFiles.commit();
+      globalJobState.hasCommittedOnce = true;
       LOG.info("Finished to commit iceberg table with the checkpoint id: {}, data file size: {}.",
           ckpId, dataFiles.size());
     }
@@ -170,14 +181,14 @@ class GlobalTableCommitter {
             .forEach(filesToCommit::addAll);
         // Commit up the chosen checkpoint id.
         try {
-          commitUpToTable(commitCpId, filesToCommit);
+          commitUpToTable(commitCpId, filesToCommit, globalJobState);
           acc.clear();
         } catch (Exception e) {
           throw new TableException("Failed to commit to iceberg table " +
               tableIdentifier + " for checkpointId " + commitCpId, e);
         }
       } else {
-        commitCpId = getMaxCommittedCheckpointId(tableIdentifier, hadoopConf.get());
+        commitCpId = generateMaxCheckpointId(globalJobState.hasCommittedOnce);
       }
       globalJobState.maxCommittedCheckpointId = commitCpId;
       // The max committed checkpoint id will be used for clearing the complete files cache for each task.
@@ -209,10 +220,13 @@ class GlobalTableCommitter {
     private long maxCommittedCheckpointId;
     // this map keys mean checkpoint id.
     private final NavigableMap<Long, CpAccumulator> accumulator;
+    // mark this job has committed the changes to the current table metadata or not
+    private boolean hasCommittedOnce;
 
     GlobalJobState(long maxCheckpointId) {
       accumulator = new TreeMap<>();
       maxCommittedCheckpointId = maxCheckpointId;
+      hasCommittedOnce = false;
     }
   }
 

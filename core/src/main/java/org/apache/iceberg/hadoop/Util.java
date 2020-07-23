@@ -50,7 +50,7 @@ public class Util {
     try {
       isLogin = UserGroupInformation.isLoginKeytabBased();
       boolean securityEnabled = UserGroupInformation.isSecurityEnabled();
-      LOG.info("krbEnabled: {}, ugi isLogin: {}, security: {}, hasKrbCredentials: {}.",
+      LOG.debug("krbEnabled: {}, ugi isLogin: {}, security: {}, hasKrbCredentials: {}.",
           krbEnabled, isLogin, securityEnabled, UserGroupInformation.getLoginUser().hasKerberosCredentials());
       if (krbEnabled) {
         if (!isLogin) {

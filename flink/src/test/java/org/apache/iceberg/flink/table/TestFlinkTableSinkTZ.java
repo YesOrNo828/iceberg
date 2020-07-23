@@ -165,6 +165,15 @@ public class TestFlinkTableSinkTZ extends AbstractTestBase {
     }
   }
 
+  @Test(timeout = 15 * 60 * 1000)
+  public void testMultipleParallelismDDLUnRestored() throws Exception {
+    // sinking to the same table successful when restart new job with unRestored from checkpoint
+    for (int i = 1; i <= 2; i++) {
+      testSQL(3, true, i);
+      Thread.sleep(1000);
+    }
+  }
+
   @Test
   public void testParallelismOneByDescriptor() throws Exception {
     testSQL(1, false, 1);

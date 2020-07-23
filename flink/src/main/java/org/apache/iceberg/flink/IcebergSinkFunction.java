@@ -195,6 +195,7 @@ public class IcebergSinkFunction extends RichSinkFunction<Tuple2<Boolean, Row>>
     // GlobalTableCommitter will commit the table only if all tasks have submit their pending data files.
     // If lacking the checkpoint task state from one task, then the table commit will be blocked.
     long committedCkpId = globalCommitter.commit(dataFilesToCommit);
+    LOG.info("has committed data files to jm, ckpId={}, return committed ckpId={}.", checkpointId,  committedCkpId);
     if (committedCkpId > 0) {
       // Remove all the files whose checkpoint id <= MaxCommittedCheckpointId from the CACHE.
       completeFilesPerCheckpoint.headMap(committedCkpId, true).clear();
